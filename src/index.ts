@@ -6,7 +6,7 @@ import { useTokenMeta } from './hooks'
 
 // Re-export core constants and types
 export { BPS_PER_WHOLE } from '@whisky-gaming/core'
-export type { WhiskyTransaction, WhiskyEventType, AnyWhiskyEvent } from '@whisky-gaming/core'
+export type { WhiskyTransaction, WhiskyEventType, AnyWhiskyEvent, GameResult  } from '@whisky-gaming/core'
 
 // Core React hooks and provider
 export * from './WhiskyProvider'

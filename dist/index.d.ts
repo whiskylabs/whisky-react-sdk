@@ -3,7 +3,7 @@ import * as _solana_web3_js from '@solana/web3.js';
 import { PublicKey, TransactionInstruction, Commitment } from '@solana/web3.js';
 import * as _whisky_gaming_core from '@whisky-gaming/core';
 import { WhiskyProvider as WhiskyProvider$1, WhiskyEventType, WhiskyTransaction } from '@whisky-gaming/core';
-export { AnyWhiskyEvent, BPS_PER_WHOLE, WhiskyEventType, WhiskyTransaction } from '@whisky-gaming/core';
+export { AnyWhiskyEvent, BPS_PER_WHOLE, GameResult, WhiskyEventType, WhiskyTransaction } from '@whisky-gaming/core';
 import * as zustand from 'zustand';
 import { StoreApi } from 'zustand';
 import * as _coral_xyz_anchor from '@coral-xyz/anchor';
