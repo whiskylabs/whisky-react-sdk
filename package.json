@@ -1,7 +1,7 @@
 {
   "name": "@whisky-gaming/ui",
   "private": false,
-  "version": "1.0.4",
+  "version": "1.0.5",
   "description": "React UI Components for Whisky Gaming Protocol",
   "main": "dist/index.js",
   "module": "dist/index.mjs",
