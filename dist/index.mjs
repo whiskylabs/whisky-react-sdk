@@ -1,11 +1,11 @@
 // src/index.ts
-import React22, { useContext as useContext2, createContext as createContext2 } from "react";
+import React25, { useContext as useContext2, createContext as createContext2 } from "react";
 import { PublicKey as PublicKey12 } from "@solana/web3.js";
 
 // src/WhiskyPlatformProvider.tsx
 import { PublicKey as PublicKey10 } from "@solana/web3.js";
 import { NATIVE_MINT as NATIVE_MINT4 } from "@whisky-gaming/core";
-import React8 from "react";
+import React10 from "react";
 
 // src/PortalContext.tsx
 import React from "react";
@@ -41,7 +41,7 @@ function PortalTarget(props) {
 // src/referral/ReferralContext.tsx
 import { useWallet as useWallet5 } from "@solana/wallet-adapter-react";
 import { PublicKey as PublicKey9 } from "@solana/web3.js";
-import React7, { createContext, useEffect as useEffect3, useState as useState3 } from "react";
+import React9, { createContext, useEffect as useEffect3, useState as useState3 } from "react";
 
 // src/WhiskyProvider.tsx
 import { useConnection, useWallet } from "@solana/wallet-adapter-react";
@@ -97,7 +97,7 @@ function WhiskyProvider({ plugins: _plugins = [], children }) {
 }
 
 // src/hooks/index.ts
-import React6 from "react";
+import React8 from "react";
 
 // src/hooks/useTokenMeta.tsx
 import { signal } from "@preact/signals-react";
@@ -361,6 +361,7 @@ import { NATIVE_MINT as NATIVE_MINT2, SYSTEM_PROGRAM as SYSTEM_PROGRAM2, getPool
 import { useConnection as useConnection3, useWallet as useWallet3 } from "@solana/wallet-adapter-react";
 import { Transaction } from "@solana/web3.js";
 import { useCallback } from "react";
+import React5 from "react";
 
 // src/hooks/useTransactionStore.ts
 import { create } from "zustand";
@@ -369,9 +370,39 @@ var useTransactionStore = create((set) => ({
   setState: (state, error) => set({ state, error })
 }));
 
+// src/PubSub.ts
+var PubSub = class {
+  constructor() {
+    this.listeners = /* @__PURE__ */ new Set();
+    this.subscribe = (listener) => {
+      this.listeners.add(listener);
+      return () => {
+        this.listeners.delete(listener);
+      };
+    };
+    this.emit = (...args) => {
+      this.listeners.forEach((listener) => {
+        try {
+          listener(...args);
+        } catch (error) {
+          console.error("Error in PubSub listener:", error);
+        }
+      });
+    };
+  }
+};
+
 // src/hooks/useSendTransaction.ts
-function throwTransactionError(error) {
-  throw error;
+var transactionEventEmitter = new PubSub();
+var throwTransactionError = (error) => {
+  transactionEventEmitter.emit(error);
+  return error;
+};
+function useTransactionError(callback) {
+  React5.useLayoutEffect(
+    () => transactionEventEmitter.subscribe(callback),
+    [callback]
+  );
 }
 function useSendTransaction() {
   const { connection } = useConnection3();
@@ -407,7 +438,7 @@ function useSendTransaction() {
         return signature;
       } catch (error) {
         setState("error", error);
-        throw error;
+        throw throwTransactionError(error);
       }
     },
     [connection, sendTransaction, publicKey, setState]
@@ -509,23 +540,72 @@ function useWhisky() {
   };
 }
 
+// src/hooks/useWhiskyEvents.ts
+import { useConnection as useConnection5 } from "@solana/wallet-adapter-react";
+import { PROGRAM_ID, fetchWhiskyTransactions } from "@whisky-gaming/core";
+import React6 from "react";
+function useWhiskyEventListener(eventName, callback, deps = []) {
+  const program = useWhiskyProgram();
+  React6.useEffect(() => {
+    if (!program) {
+      console.warn("Whisky program not found");
+      return;
+    }
+    const listener = program.addEventListener(
+      eventName,
+      (data, slot, signature) => {
+        const event = {
+          signature,
+          time: Date.now(),
+          name: eventName,
+          data
+        };
+        callback(event);
+      }
+    );
+    return () => {
+      program.removeEventListener(listener);
+    };
+  }, [eventName, program, ...deps]);
+}
+function useWhiskyEvents(eventName, props = {}) {
+  const { signatureLimit = 30 } = props;
+  const { connection } = useConnection5();
+  const [events, setEvents] = React6.useState([]);
+  const address = props.address ?? PROGRAM_ID;
+  React6.useEffect(
+    () => {
+      fetchWhiskyTransactions(
+        connection,
+        address,
+        { limit: signatureLimit }
+      ).then((x) => setEvents(x));
+    },
+    [connection, signatureLimit, address]
+  );
+  return React6.useMemo(
+    () => events.filter((x) => x.name === eventName),
+    [eventName, events]
+  );
+}
+
 // src/hooks/useWagerInput.ts
-import React5 from "react";
+import React7 from "react";
 
 // src/hooks/index.ts
 function useWhiskyPlatformContext() {
-  return React6.useContext(WhiskyPlatformContext);
+  return React8.useContext(WhiskyPlatformContext);
 }
 function useCurrentPool() {
-  const context = React6.useContext(WhiskyPlatformContext);
+  const context = React8.useContext(WhiskyPlatformContext);
   return context.selectedPool;
 }
 function useCurrentToken() {
-  const { token } = React6.useContext(WhiskyPlatformContext).selectedPool;
+  const { token } = React8.useContext(WhiskyPlatformContext).selectedPool;
   return useTokenMeta(token);
 }
 function useFees() {
-  const context = React6.useContext(WhiskyPlatformContext);
+  const context = React8.useContext(WhiskyPlatformContext);
   const pool = useCurrentPool();
   const creatorFee = context.defaultCreatorFee;
   const jackpotFee = context.defaultJackpotFee;
@@ -555,21 +635,21 @@ import { PublicKey as PublicKey6 } from "@solana/web3.js";
 var REFERRAL_IDL = { version: "0.1.0", name: "refer_program", instructions: [{ name: "configReferAccount", accounts: [{ name: "authority", isMut: true, isSigner: true }, { name: "referAccount", isMut: true, isSigner: false }, { name: "creator", isMut: false, isSigner: false }, { name: "systemProgram", isMut: false, isSigner: false }], args: [{ name: "referrer", type: "publicKey" }] }, { name: "closeReferAccount", accounts: [{ name: "authority", isMut: true, isSigner: true }, { name: "referAccount", isMut: true, isSigner: false }, { name: "creator", isMut: false, isSigner: false }, { name: "systemProgram", isMut: false, isSigner: false }], args: [] }], accounts: [{ name: "referAccount", type: { kind: "struct", fields: [{ name: "referrer", type: "publicKey" }] } }] };
 
 // src/referral/program.ts
-var PROGRAM_ID = new PublicKey6("RefwFk2PPNd9bPehSyAkrkrehSHkvz6mTAHTNe8v9vH");
+var PROGRAM_ID2 = new PublicKey6("RefwFk2PPNd9bPehSyAkrkrehSHkvz6mTAHTNe8v9vH");
 var getReferrerPda = (creator, authority) => PublicKey6.findProgramAddressSync([
   creator.toBytes(),
   authority.toBytes()
-], PROGRAM_ID)[0];
+], PROGRAM_ID2)[0];
 var createReferral = async (provider, creator, referAccount) => {
-  const referralProgram = new Program(REFERRAL_IDL, PROGRAM_ID, provider);
+  const referralProgram = new Program(REFERRAL_IDL, PROGRAM_ID2, provider);
   return referralProgram.methods.configReferAccount(referAccount).accounts({ referAccount: getReferrerPda(creator, provider.wallet.publicKey), creator }).instruction();
 };
 var closeReferral = async (provider, creator) => {
-  const referralProgram = new Program(REFERRAL_IDL, PROGRAM_ID, provider);
+  const referralProgram = new Program(REFERRAL_IDL, PROGRAM_ID2, provider);
   return referralProgram.methods.closeReferAccount().accounts({ referAccount: getReferrerPda(creator, provider.wallet.publicKey), creator }).instruction();
 };
 var fetchReferral = async (provider, pda) => {
-  const referralProgram = new Program(REFERRAL_IDL, PROGRAM_ID, provider);
+  const referralProgram = new Program(REFERRAL_IDL, PROGRAM_ID2, provider);
   const account = await referralProgram.account.referAccount.fetch(pda);
   if (!account)
     return null;
@@ -789,7 +869,7 @@ function ReferralProvider({
     storage.setItem("referral-new", address.toString());
     setReferralCache({ address, isOnChain });
   };
-  return /* @__PURE__ */ React7.createElement(ReferralContext.Provider, { value: {
+  return /* @__PURE__ */ React9.createElement(ReferralContext.Provider, { value: {
     prefix,
     isOnChain: referralCache.isOnChain,
     referrerAddress: referralCache.address,
@@ -800,16 +880,16 @@ function ReferralProvider({
 }
 
 // src/WhiskyPlatformProvider.tsx
-var WhiskyPlatformContext = React8.createContext(null);
+var WhiskyPlatformContext = React10.createContext(null);
 function WhiskyPlatformProvider(props) {
   const {
     creator,
     children,
     referral = { prefix: "code", fee: 0.01, autoAccept: true }
   } = props;
-  const [selectedPool, setSelectedPool] = React8.useState(props.defaultPool ?? { token: NATIVE_MINT4 });
-  const [clientSeed, setClientSeed] = React8.useState(String(Math.random() * 1e9 | 0));
-  const [defaultJackpotFee, setDefaultJackpotFee] = React8.useState(props.defaultJackpotFee ?? 1e-3);
+  const [selectedPool, setSelectedPool] = React10.useState(props.defaultPool ?? { token: NATIVE_MINT4 });
+  const [clientSeed, setClientSeed] = React10.useState(String(Math.random() * 1e9 | 0));
+  const [defaultJackpotFee, setDefaultJackpotFee] = React10.useState(props.defaultJackpotFee ?? 1e-3);
   const defaultCreatorFee = props.defaultCreatorFee ?? 0.01;
   const setPool = (tokenMint, authority = new PublicKey10("11111111111111111111111111111111")) => {
     setSelectedPool({
@@ -820,7 +900,7 @@ function WhiskyPlatformProvider(props) {
   const setToken = (tokenMint) => {
     setPool(tokenMint);
   };
-  return /* @__PURE__ */ React8.createElement(
+  return /* @__PURE__ */ React10.createElement(
     WhiskyPlatformContext.Provider,
     {
       value: {
@@ -838,12 +918,15 @@ function WhiskyPlatformProvider(props) {
         defaultCreatorFee
       }
     },
-    /* @__PURE__ */ React8.createElement(ReferralProvider, { ...referral }, /* @__PURE__ */ React8.createElement(PortalProvider, null, children))
+    /* @__PURE__ */ React10.createElement(ReferralProvider, { ...referral }, /* @__PURE__ */ React10.createElement(PortalProvider, null, children))
   );
 }
 
+// src/index.ts
+import { BPS_PER_WHOLE as BPS_PER_WHOLE2 } from "@whisky-gaming/core";
+
 // src/EffectTest.tsx
-import React9 from "react";
+import React11 from "react";
 
 // src/hooks/useAnimationFrame.ts
 import { useLayoutEffect, useRef } from "react";
@@ -874,11 +957,11 @@ var useAnimationFrame_default = (cb) => {
 
 // src/EffectTest.tsx
 function EffectTest({ src }) {
-  const parts = React9.useRef(Array.from({ length: 25 }).map(() => ({
+  const parts = React11.useRef(Array.from({ length: 25 }).map(() => ({
     x: Math.random(),
     y: -Math.random() * 600
   })));
-  const image = React9.useMemo(
+  const image = React11.useMemo(
     () => {
       const image2 = document.createElement("img");
       image2.src = src;
@@ -896,7 +979,7 @@ function EffectTest({ src }) {
       );
     }
   );
-  return /* @__PURE__ */ React9.createElement(
+  return /* @__PURE__ */ React11.createElement(
     WhiskyUi.Canvas,
     {
       zIndex: 99,
@@ -926,8 +1009,8 @@ function EffectTest({ src }) {
 }
 
 // src/ErrorBoundary.tsx
-import React10 from "react";
-var ErrorBoundary = class extends React10.Component {
+import React12 from "react";
+var ErrorBoundary = class extends React12.Component {
   constructor() {
     super(...arguments);
     this.state = { hasError: false, error: null };
@@ -950,10 +1033,10 @@ var ErrorBoundary = class extends React10.Component {
 };
 
 // src/GameContext.tsx
-import React21 from "react";
+import React23 from "react";
 
 // src/components/Button.tsx
-import React11 from "react";
+import React13 from "react";
 import styled, { css } from "styled-components";
 var StyledButton = styled.button`
   --color: var(--whisky-ui-button-default-color);
@@ -990,7 +1073,7 @@ var StyledButton = styled.button`
   }
 `;
 function Button(props) {
-  return /* @__PURE__ */ React11.createElement(
+  return /* @__PURE__ */ React13.createElement(
     StyledButton,
     {
       disabled: props.disabled,
@@ -1003,12 +1086,12 @@ function Button(props) {
 }
 
 // src/components/Canvas.tsx
-import React12 from "react";
-var WhiskyCanvas = React12.forwardRef(function Canvas(props, forwardRef) {
+import React14 from "react";
+var WhiskyCanvas = React14.forwardRef(function Canvas(props, forwardRef) {
   const { render, zIndex = 0, style, ...rest } = props;
-  const wrapper = React12.useRef(null);
-  const canvas = React12.useRef(null);
-  React12.useImperativeHandle(forwardRef, () => canvas.current);
+  const wrapper = React14.useRef(null);
+  const canvas = React14.useRef(null);
+  React14.useImperativeHandle(forwardRef, () => canvas.current);
   useAnimationFrame_default(
     (time) => {
       const ctx = canvas.current.getContext("2d");
@@ -1028,7 +1111,7 @@ var WhiskyCanvas = React12.forwardRef(function Canvas(props, forwardRef) {
       ctx.restore();
     }
   );
-  React12.useLayoutEffect(() => {
+  React14.useLayoutEffect(() => {
     let timeout;
     const resize = () => {
       canvas.current.width = wrapper.current.clientWidth * window.devicePixelRatio;
@@ -1049,11 +1132,11 @@ var WhiskyCanvas = React12.forwardRef(function Canvas(props, forwardRef) {
       clearTimeout(timeout);
     };
   }, []);
-  return /* @__PURE__ */ React12.createElement("div", { ref: wrapper, style: { position: "absolute", left: 0, top: 0, width: "100%", height: "100%", zIndex } }, /* @__PURE__ */ React12.createElement("canvas", { ...rest, style: { width: "100%", height: "100%", ...style }, ref: canvas }));
+  return /* @__PURE__ */ React14.createElement("div", { ref: wrapper, style: { position: "absolute", left: 0, top: 0, width: "100%", height: "100%", zIndex } }, /* @__PURE__ */ React14.createElement("canvas", { ...rest, style: { width: "100%", height: "100%", ...style }, ref: canvas }));
 });
 
 // src/components/ResponsiveSize.tsx
-import React13 from "react";
+import React15 from "react";
 import styled2 from "styled-components";
 var Responsive = styled2.div`
   justify-content: center;
@@ -1067,10 +1150,10 @@ var Responsive = styled2.div`
   top: 0;
 `;
 function ResponsiveSize({ children, maxScale = 1, overlay, ...props }) {
-  const wrapper = React13.useRef(null);
-  const inner = React13.useRef(null);
-  const content = React13.useRef(null);
-  React13.useLayoutEffect(() => {
+  const wrapper = React15.useRef(null);
+  const inner = React15.useRef(null);
+  const content = React15.useRef(null);
+  React15.useLayoutEffect(() => {
     let timeout;
     const resize = () => {
       const ww = wrapper.current.clientWidth / (content.current.scrollWidth + 40);
@@ -1093,11 +1176,11 @@ function ResponsiveSize({ children, maxScale = 1, overlay, ...props }) {
       clearTimeout(timeout);
     };
   }, [maxScale]);
-  return /* @__PURE__ */ React13.createElement(Responsive, { ...props, ref: wrapper }, /* @__PURE__ */ React13.createElement("div", { ref: inner }, /* @__PURE__ */ React13.createElement("div", { ref: content }, children)));
+  return /* @__PURE__ */ React15.createElement(Responsive, { ...props, ref: wrapper }, /* @__PURE__ */ React15.createElement("div", { ref: inner }, /* @__PURE__ */ React15.createElement("div", { ref: content }, children)));
 }
 
 // src/components/Select.tsx
-import React14 from "react";
+import React16 from "react";
 import styled3 from "styled-components";
 var StyledWrapper = styled3.div`
   position: relative;
@@ -1131,16 +1214,16 @@ var StyledPopup = styled3.div`
   }
 `;
 function Select(props) {
-  const [open, setOpen] = React14.useState(false);
+  const [open, setOpen] = React16.useState(false);
   const set = (val) => {
     setOpen(false);
     props.onChange(val);
   };
-  return /* @__PURE__ */ React14.createElement(StyledWrapper, { className: props.className }, /* @__PURE__ */ React14.createElement(Button, { disabled: props.disabled, onClick: () => setOpen(!open) }, props.label ? props.label(props.value) : JSON.stringify(props.value)), open && /* @__PURE__ */ React14.createElement(StyledPopup, null, props.options.map((val, i) => /* @__PURE__ */ React14.createElement("button", { key: i, onClick: () => set(val) }, props.label ? props.label(val) : JSON.stringify(val)))));
+  return /* @__PURE__ */ React16.createElement(StyledWrapper, { className: props.className }, /* @__PURE__ */ React16.createElement(Button, { disabled: props.disabled, onClick: () => setOpen(!open) }, props.label ? props.label(props.value) : JSON.stringify(props.value)), open && /* @__PURE__ */ React16.createElement(StyledPopup, null, props.options.map((val, i) => /* @__PURE__ */ React16.createElement("button", { key: i, onClick: () => set(val) }, props.label ? props.label(val) : JSON.stringify(val)))));
 }
 
 // src/components/Switch.tsx
-import React15 from "react";
+import React17 from "react";
 import styled4 from "styled-components";
 var SwitchButton = styled4.input`
   all: unset;
@@ -1176,7 +1259,7 @@ var SwitchButton = styled4.input`
   }
 `;
 function Switch(props) {
-  return /* @__PURE__ */ React15.createElement(
+  return /* @__PURE__ */ React17.createElement(
     SwitchButton,
     {
       type: "checkbox",
@@ -1189,7 +1272,7 @@ function Switch(props) {
 }
 
 // src/components/TextInput.tsx
-import React16 from "react";
+import React18 from "react";
 import styled5 from "styled-components";
 var StyledTextInput = styled5.input`
   color: var(--whisky-ui-input-color);
@@ -1211,7 +1294,7 @@ var StyledTextInput = styled5.input`
   }
 `;
 function TextInput({ onChange, ...props }) {
-  return /* @__PURE__ */ React16.createElement(
+  return /* @__PURE__ */ React18.createElement(
     StyledTextInput,
     {
       type: "text",
@@ -1223,13 +1306,13 @@ function TextInput({ onChange, ...props }) {
 }
 
 // src/components/WagerInput.tsx
-import React19, { useRef as useRef2 } from "react";
+import React21, { useRef as useRef2 } from "react";
 import styled6, { css as css2 } from "styled-components";
 
 // src/components/TokenValue.tsx
-import React17 from "react";
+import React19 from "react";
 function TokenValue(props) {
-  const context = React17.useContext(WhiskyPlatformContext);
+  const context = React19.useContext(WhiskyPlatformContext);
   const mint = props.mint ?? context?.selectedPool.token;
   if (!mint) {
     throw new Error('"mint" prop is required when not using WhiskyPlatformProvider');
@@ -1251,13 +1334,13 @@ function TokenValue(props) {
     }
     return tokenAmount.toLocaleString(void 0, { maximumFractionDigits: Math.floor(tokenAmount) > 100 ? 1 : 4 });
   })();
-  return /* @__PURE__ */ React17.createElement(React17.Fragment, null, displayedAmount, " ", suffix);
+  return /* @__PURE__ */ React19.createElement(React19.Fragment, null, displayedAmount, " ", suffix);
 }
 
 // src/hooks/useOnClickOutside.ts
-import React18 from "react";
+import React20 from "react";
 function useOnClickOutside(ref, handler) {
-  React18.useEffect(() => {
+  React20.useEffect(() => {
     const listener = (event) => {
       if (!ref.current || ref.current.contains(event.target)) {
         return;
@@ -1380,12 +1463,12 @@ var WagerAmount = styled6.div`
 function WagerInput(props) {
   const whisky = useWhisky();
   const token = useCurrentToken();
-  const [input, setInput] = React19.useState("");
+  const [input, setInput] = React21.useState("");
   const balance = useUserBalance();
   const fees = useFees();
-  const [isEditing, setIsEditing] = React19.useState(false);
+  const [isEditing, setIsEditing] = React21.useState(false);
   const ref = useRef2(null);
-  React19.useEffect(
+  React21.useEffect(
     () => {
       props.onChange(token.baseWager);
     },
@@ -1409,13 +1492,13 @@ function WagerInput(props) {
     const nextValue = Math.max(token.baseWager, props.value * 2 || token.baseWager);
     props.onChange(Math.max(0, Math.min(nextValue, availableBalance - nextValue * fees)));
   };
-  return /* @__PURE__ */ React19.createElement("div", { ref, className: props.className, style: { position: "relative" } }, /* @__PURE__ */ React19.createElement(StyledWagerInput, { $edit: isEditing }, /* @__PURE__ */ React19.createElement(Flex, { onClick: () => !whisky.isPlaying && startEditInput() }, /* @__PURE__ */ React19.createElement(TokenImage, { src: token.image }), !isEditing || props.options ? /* @__PURE__ */ React19.createElement(
+  return /* @__PURE__ */ React21.createElement("div", { ref, className: props.className, style: { position: "relative" } }, /* @__PURE__ */ React21.createElement(StyledWagerInput, { $edit: isEditing }, /* @__PURE__ */ React21.createElement(Flex, { onClick: () => !whisky.isPlaying && startEditInput() }, /* @__PURE__ */ React21.createElement(TokenImage, { src: token.image }), !isEditing || props.options ? /* @__PURE__ */ React21.createElement(
     WagerAmount,
     {
       title: (props.value / 10 ** token.decimals).toLocaleString()
     },
-    /* @__PURE__ */ React19.createElement(TokenValue, { suffix: "", amount: props.value, mint: token.mint })
-  ) : /* @__PURE__ */ React19.createElement(
+    /* @__PURE__ */ React21.createElement(TokenValue, { suffix: "", amount: props.value, mint: token.mint })
+  ) : /* @__PURE__ */ React21.createElement(
     Input,
     {
       value: input,
@@ -1431,17 +1514,17 @@ function WagerInput(props) {
       autoFocus: true,
       onFocus: (e) => e.target.select()
     }
-  )), !props.options && /* @__PURE__ */ React19.createElement(Buttons, null, /* @__PURE__ */ React19.createElement(InputButton, { disabled: whisky.isPlaying, onClick: () => props.onChange(props.value / 2) }, "x.5"), /* @__PURE__ */ React19.createElement(InputButton, { disabled: whisky.isPlaying, onClick: x2 }, "x2"))), props.options && isEditing && /* @__PURE__ */ React19.createElement(StyledPopup2, null, props.options.map((option, i) => /* @__PURE__ */ React19.createElement("button", { key: i, onClick: () => {
+  )), !props.options && /* @__PURE__ */ React21.createElement(Buttons, null, /* @__PURE__ */ React21.createElement(InputButton, { disabled: whisky.isPlaying, onClick: () => props.onChange(props.value / 2) }, "x.5"), /* @__PURE__ */ React21.createElement(InputButton, { disabled: whisky.isPlaying, onClick: x2 }, "x2"))), props.options && isEditing && /* @__PURE__ */ React21.createElement(StyledPopup2, null, props.options.map((option, i) => /* @__PURE__ */ React21.createElement("button", { key: i, onClick: () => {
     props.onChange(option);
     setIsEditing(false);
-  } }, /* @__PURE__ */ React19.createElement(TokenValue, { amount: option })))));
+  } }, /* @__PURE__ */ React21.createElement(TokenValue, { amount: option })))));
 }
 
 // src/components/WagerSelect.tsx
-import React20 from "react";
+import React22 from "react";
 function WagerSelect(props) {
   const whisky = useWhisky();
-  return /* @__PURE__ */ React20.createElement(
+  return /* @__PURE__ */ React22.createElement(
     Select,
     {
       className: props.className,
@@ -1449,7 +1532,7 @@ function WagerSelect(props) {
       value: props.value,
       onChange: props.onChange,
       disabled: whisky.isPlaying,
-      label: (value) => /* @__PURE__ */ React20.createElement(TokenValue, { amount: value })
+      label: (value) => /* @__PURE__ */ React22.createElement(TokenValue, { amount: value })
     }
   );
 }
@@ -1540,13 +1623,13 @@ function useSound(definition) {
 }
 
 // src/GameContext.tsx
-var GameContext = React21.createContext({ game: { id: "unknown", app: null } });
+var GameContext = React23.createContext({ game: { id: "unknown", app: null } });
 function Game({ game, children, errorFallback }) {
-  return /* @__PURE__ */ React21.createElement(GameContext.Provider, { key: game.id, value: { game } }, /* @__PURE__ */ React21.createElement(ErrorBoundary, { fallback: errorFallback }, /* @__PURE__ */ React21.createElement(React21.Suspense, { fallback: /* @__PURE__ */ React21.createElement(React21.Fragment, null) }, /* @__PURE__ */ React21.createElement(game.app, { ...game.props }))), children);
+  return /* @__PURE__ */ React23.createElement(GameContext.Provider, { key: game.id, value: { game } }, /* @__PURE__ */ React23.createElement(ErrorBoundary, { fallback: errorFallback }, /* @__PURE__ */ React23.createElement(React23.Suspense, { fallback: /* @__PURE__ */ React23.createElement(React23.Fragment, null) }, /* @__PURE__ */ React23.createElement(game.app, { ...game.props }))), children);
 }
 function PlayButton(props) {
   const whisky = useWhisky();
-  return /* @__PURE__ */ React21.createElement(Portal, { target: "play" }, /* @__PURE__ */ React21.createElement(
+  return /* @__PURE__ */ React23.createElement(Portal, { target: "play" }, /* @__PURE__ */ React23.createElement(
     Button,
     {
       disabled: whisky.isPlaying || props.disabled,
@@ -1576,6 +1659,18 @@ var WhiskyUi = {
   Select,
   TextInput
 };
+
+// src/SendTransactionContext.tsx
+import React24 from "react";
+var defaultValue = {
+  priorityFee: 100001,
+  simulationUnits: 14e5,
+  computeUnitLimitMargin: 1.1
+};
+var SendTransactionContext = React24.createContext(defaultValue);
+function SendTransactionProvider({ children, ...props }) {
+  return /* @__PURE__ */ React24.createElement(SendTransactionContext.Provider, { value: { ...defaultValue, ...props } }, children);
+}
 
 // src/makeHeliusTokenFetcher.ts
 import { PublicKey as PublicKey11 } from "@solana/web3.js";
@@ -1705,13 +1800,13 @@ function useGame() {
   return useContext2(GameContextObj);
 }
 function useWagerInput2(initial) {
-  const [_wager, setWager] = React22.useState(initial);
-  const context = React22.useContext(WhiskyPlatformContext);
+  const [_wager, setWager] = React25.useState(initial);
+  const context = React25.useContext(WhiskyPlatformContext);
   const token = useTokenMeta(context.selectedPool.token);
   return [_wager ?? token.baseWager, setWager];
 }
 function useTokenList() {
-  return React22.useContext(TokenMetaContext).tokens ?? [];
+  return React25.useContext(TokenMetaContext).tokens ?? [];
 }
 var WhiskyStandardTokens = {
   fake: {
@@ -1744,12 +1839,15 @@ var WhiskyStandardTokens = {
   // },
 };
 export {
+  BPS_PER_WHOLE2 as BPS_PER_WHOLE,
   EffectTest,
   FAKE_TOKEN_MINT,
   GameContext,
   PlayButton,
   ReferralContext,
   ReferralProvider,
+  SendTransactionContext,
+  SendTransactionProvider,
   TokenMetaContext,
   TokenMetaProvider,
   TokenValue,
@@ -1774,12 +1872,15 @@ export {
   useSendTransaction,
   useTokenList,
   useTokenMeta,
+  useTransactionError,
   useTransactionStore,
   useUserBalance,
   useWagerInput2 as useWagerInput,
   useWalletAddress,
   useWhisky,
   useWhiskyContext,
+  useWhiskyEventListener,
+  useWhiskyEvents,
   useWhiskyPlatformContext,
   useWhiskyPlay,
   useWhiskyProgram,

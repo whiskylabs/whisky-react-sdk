@@ -1,7 +1,9 @@
 import { useConnection, useWallet } from '@solana/wallet-adapter-react'
 import { Transaction, VersionedTransaction, PublicKey, TransactionInstruction } from '@solana/web3.js'
 import { useCallback } from 'react'
+import React from 'react'
 import { useTransactionStore } from './useTransactionStore'
+import { PubSub } from '../PubSub'
 
 export interface SendTransactionOptions {
   confirmation?: 'processed' | 'confirmed' | 'finalized'
@@ -9,8 +11,18 @@ export interface SendTransactionOptions {
   lookupTable?: PublicKey[]
 }
 
-export function throwTransactionError(error: Error): never {
-  throw error
+const transactionEventEmitter = new PubSub<[error: Error]>
+
+export const throwTransactionError = (error: any) => {
+  transactionEventEmitter.emit(error)
+  return error
+}
+
+export function useTransactionError(callback: (error: any) => void) {
+  React.useLayoutEffect(
+    () => transactionEventEmitter.subscribe(callback),
+    [callback],
+  )
 }
 
 export function useSendTransaction() {
@@ -64,7 +76,7 @@ export function useSendTransaction() {
         return signature
       } catch (error) {
         setState('error', error as Error)
-        throw error
+        throw throwTransactionError(error)
       }
     },
     [connection, sendTransaction, publicKey, setState],

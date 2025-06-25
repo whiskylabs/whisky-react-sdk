@@ -12,8 +12,9 @@ export { useBalance, useWalletAddress } from './useBalances'
 export { usePool } from './usePool'
 export { useWhisky, useNextResult } from './useWhisky'
 export { useWhiskyPlay } from './useWhiskyPlay'
-export { useSendTransaction, throwTransactionError } from './useSendTransaction'
+export { useSendTransaction, throwTransactionError, useTransactionError } from './useSendTransaction'
 export { useTransactionStore } from './useTransactionStore'
+export * from './useWhiskyEvents'
 
 // UI hooks
 export { useTokenMeta } from './useTokenMeta'

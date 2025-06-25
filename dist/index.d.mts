@@ -1,8 +1,9 @@
 import React, { PropsWithChildren } from 'react';
 import * as _solana_web3_js from '@solana/web3.js';
-import { PublicKey, TransactionInstruction } from '@solana/web3.js';
+import { PublicKey, TransactionInstruction, Commitment } from '@solana/web3.js';
 import * as _whisky_gaming_core from '@whisky-gaming/core';
-import { WhiskyProvider as WhiskyProvider$1 } from '@whisky-gaming/core';
+import { WhiskyProvider as WhiskyProvider$1, WhiskyEventType, WhiskyTransaction } from '@whisky-gaming/core';
+export { AnyWhiskyEvent, BPS_PER_WHOLE, WhiskyEventType, WhiskyTransaction } from '@whisky-gaming/core';
 import * as zustand from 'zustand';
 import * as _coral_xyz_anchor from '@coral-xyz/anchor';
 import { Player, Gain } from 'tone';
@@ -90,7 +91,8 @@ interface SendTransactionOptions {
     label?: string;
     lookupTable?: PublicKey[];
 }
-declare function throwTransactionError(error: Error): never;
+declare const throwTransactionError: (error: any) => any;
+declare function useTransactionError(callback: (error: any) => void): void;
 declare function useSendTransaction(): (instructions: TransactionInstruction[], options?: SendTransactionOptions) => Promise<string>;
 
 interface WhiskyPlayInput {
@@ -371,6 +373,19 @@ declare const WhiskyUi: {
     TextInput: typeof TextInput;
 };
 
+interface SendTransactionContext {
+    /** Priority fee in microlamports. If set, a setComputeUnitPrice is added instruction to the transactions */
+    priorityFee?: number;
+    simulationUnits: number;
+    /** % of the consumed units in the simulation to be used as computeUnitLimit in the actual transaction */
+    computeUnitLimitMargin: number;
+    /**  */
+    blockhashCommitment?: Commitment;
+}
+declare const SendTransactionContext: React.Context<SendTransactionContext>;
+type SendTransactionProps = Partial<SendTransactionContext>;
+declare function SendTransactionProvider({ children, ...props }: React.PropsWithChildren<SendTransactionProps>): React.JSX.Element;
+
 interface AnimationFrameData {
     time: number;
     delta: number;
@@ -397,6 +412,20 @@ interface TokenValueProps {
     exact?: boolean;
 }
 declare function TokenValue(props: TokenValueProps): React.JSX.Element;
+
+interface UseWhiskyEventsParams {
+    address?: PublicKey;
+    signatureLimit?: number;
+    listen?: boolean;
+}
+declare function useWhiskyEventListener<T extends WhiskyEventType>(eventName: T, callback: (event: WhiskyTransaction<T>) => void, deps?: React.DependencyList): void;
+/**
+ * Fetches previous events from the provided address (Defaults to creator set in <WhiskyProvider />)
+ */
+declare function useWhiskyEvents<T extends WhiskyEventType>(eventName: T, props?: {
+    address?: PublicKey;
+    signatureLimit?: number;
+}): WhiskyTransaction<T>[];
 
 declare function useTokenMeta(mint: PublicKey): TokenMeta;
 declare namespace useTokenMeta {
@@ -490,4 +519,4 @@ declare const WhiskyStandardTokens: {
     };
 };
 
-export { CanvasContext, CanvasProps, EffectTest, FAKE_TOKEN_MINT, GameBundle, GameContext, PartialTokenMetaWithMint, PlayButton, PoolToken, ReferralContext, ReferralProvider, ReferralProviderProps, SendTransactionOptions, TokenMeta, TokenMetaContext, TokenMetaFetcher, TokenMetaList, TokenMetaProps, TokenMetaProvider, TokenValue, TokenValueProps, UiPoolState, WhiskyCanvas, WhiskyContext, WhiskyPlatformContext, WhiskyPlatformProvider, WhiskyPlayInput, WhiskyPlugin, WhiskyPluginContext, WhiskyPluginInput, WhiskyProvider, WhiskyProviderProps, WhiskyStandardTokens, WhiskyUi, makeHeliusTokenFetcher, throwTransactionError, useAccount, useBalance, useCurrentPool, useCurrentToken, useFees, useGame, useNextResult, usePool, useReferral, useSendTransaction, useTokenList, useTokenMeta, useTransactionStore, useUserBalance, useWagerInput, useWalletAddress, useWhisky, useWhiskyContext, useWhiskyPlatformContext, useWhiskyPlay, useWhiskyProgram, useWhiskyProvider };
+export { CanvasContext, CanvasProps, EffectTest, FAKE_TOKEN_MINT, GameBundle, GameContext, PartialTokenMetaWithMint, PlayButton, PoolToken, ReferralContext, ReferralProvider, ReferralProviderProps, SendTransactionContext, SendTransactionOptions, SendTransactionProps, SendTransactionProvider, TokenMeta, TokenMetaContext, TokenMetaFetcher, TokenMetaList, TokenMetaProps, TokenMetaProvider, TokenValue, TokenValueProps, UiPoolState, UseWhiskyEventsParams, WhiskyCanvas, WhiskyContext, WhiskyPlatformContext, WhiskyPlatformProvider, WhiskyPlayInput, WhiskyPlugin, WhiskyPluginContext, WhiskyPluginInput, WhiskyProvider, WhiskyProviderProps, WhiskyStandardTokens, WhiskyUi, makeHeliusTokenFetcher, throwTransactionError, useAccount, useBalance, useCurrentPool, useCurrentToken, useFees, useGame, useNextResult, usePool, useReferral, useSendTransaction, useTokenList, useTokenMeta, useTransactionError, useTransactionStore, useUserBalance, useWagerInput, useWalletAddress, useWhisky, useWhiskyContext, useWhiskyEventListener, useWhiskyEvents, useWhiskyPlatformContext, useWhiskyPlay, useWhiskyProgram, useWhiskyProvider };

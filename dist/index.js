@@ -30,12 +30,15 @@ var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: tru
 // src/index.ts
 var src_exports = {};
 __export(src_exports, {
+  BPS_PER_WHOLE: () => import_core8.BPS_PER_WHOLE,
   EffectTest: () => EffectTest,
   FAKE_TOKEN_MINT: () => FAKE_TOKEN_MINT,
   GameContext: () => GameContext,
   PlayButton: () => PlayButton,
   ReferralContext: () => ReferralContext,
   ReferralProvider: () => ReferralProvider,
+  SendTransactionContext: () => SendTransactionContext,
+  SendTransactionProvider: () => SendTransactionProvider,
   TokenMetaContext: () => TokenMetaContext,
   TokenMetaProvider: () => TokenMetaProvider,
   TokenValue: () => TokenValue,
@@ -60,25 +63,28 @@ __export(src_exports, {
   useSendTransaction: () => useSendTransaction,
   useTokenList: () => useTokenList,
   useTokenMeta: () => useTokenMeta,
+  useTransactionError: () => useTransactionError,
   useTransactionStore: () => useTransactionStore,
   useUserBalance: () => useUserBalance,
   useWagerInput: () => useWagerInput2,
   useWalletAddress: () => useWalletAddress,
   useWhisky: () => useWhisky,
   useWhiskyContext: () => useWhiskyContext,
+  useWhiskyEventListener: () => useWhiskyEventListener,
+  useWhiskyEvents: () => useWhiskyEvents,
   useWhiskyPlatformContext: () => useWhiskyPlatformContext,
   useWhiskyPlay: () => useWhiskyPlay,
   useWhiskyProgram: () => useWhiskyProgram,
   useWhiskyProvider: () => useWhiskyProvider
 });
 module.exports = __toCommonJS(src_exports);
-var import_react28 = __toESM(require("react"));
+var import_react31 = __toESM(require("react"));
 var import_web312 = require("@solana/web3.js");
 
 // src/WhiskyPlatformProvider.tsx
 var import_web310 = require("@solana/web3.js");
-var import_core6 = require("@whisky-gaming/core");
-var import_react11 = __toESM(require("react"));
+var import_core7 = require("@whisky-gaming/core");
+var import_react13 = __toESM(require("react"));
 
 // src/PortalContext.tsx
 var import_react = __toESM(require("react"));
@@ -112,9 +118,9 @@ function PortalTarget(props) {
 }
 
 // src/referral/ReferralContext.tsx
-var import_wallet_adapter_react7 = require("@solana/wallet-adapter-react");
+var import_wallet_adapter_react8 = require("@solana/wallet-adapter-react");
 var import_web39 = require("@solana/web3.js");
-var import_react10 = __toESM(require("react"));
+var import_react12 = __toESM(require("react"));
 
 // src/WhiskyProvider.tsx
 var import_wallet_adapter_react = require("@solana/wallet-adapter-react");
@@ -170,7 +176,7 @@ function WhiskyProvider({ plugins: _plugins = [], children }) {
 }
 
 // src/hooks/index.ts
-var import_react9 = __toESM(require("react"));
+var import_react11 = __toESM(require("react"));
 
 // src/hooks/useTokenMeta.tsx
 var import_signals_react = require("@preact/signals-react");
@@ -425,6 +431,7 @@ var import_core4 = require("@whisky-gaming/core");
 var import_wallet_adapter_react4 = require("@solana/wallet-adapter-react");
 var import_web34 = require("@solana/web3.js");
 var import_react7 = require("react");
+var import_react8 = __toESM(require("react"));
 
 // src/hooks/useTransactionStore.ts
 var import_zustand = require("zustand");
@@ -433,9 +440,39 @@ var useTransactionStore = (0, import_zustand.create)((set) => ({
   setState: (state, error) => set({ state, error })
 }));
 
+// src/PubSub.ts
+var PubSub = class {
+  constructor() {
+    this.listeners = /* @__PURE__ */ new Set();
+    this.subscribe = (listener) => {
+      this.listeners.add(listener);
+      return () => {
+        this.listeners.delete(listener);
+      };
+    };
+    this.emit = (...args) => {
+      this.listeners.forEach((listener) => {
+        try {
+          listener(...args);
+        } catch (error) {
+          console.error("Error in PubSub listener:", error);
+        }
+      });
+    };
+  }
+};
+
 // src/hooks/useSendTransaction.ts
-function throwTransactionError(error) {
-  throw error;
+var transactionEventEmitter = new PubSub();
+var throwTransactionError = (error) => {
+  transactionEventEmitter.emit(error);
+  return error;
+};
+function useTransactionError(callback) {
+  import_react8.default.useLayoutEffect(
+    () => transactionEventEmitter.subscribe(callback),
+    [callback]
+  );
 }
 function useSendTransaction() {
   const { connection } = (0, import_wallet_adapter_react4.useConnection)();
@@ -471,7 +508,7 @@ function useSendTransaction() {
         return signature;
       } catch (error) {
         setState("error", error);
-        throw error;
+        throw throwTransactionError(error);
       }
     },
     [connection, sendTransaction, publicKey, setState]
@@ -573,23 +610,72 @@ function useWhisky() {
   };
 }
 
+// src/hooks/useWhiskyEvents.ts
+var import_wallet_adapter_react7 = require("@solana/wallet-adapter-react");
+var import_core6 = require("@whisky-gaming/core");
+var import_react9 = __toESM(require("react"));
+function useWhiskyEventListener(eventName, callback, deps = []) {
+  const program = useWhiskyProgram();
+  import_react9.default.useEffect(() => {
+    if (!program) {
+      console.warn("Whisky program not found");
+      return;
+    }
+    const listener = program.addEventListener(
+      eventName,
+      (data, slot, signature) => {
+        const event = {
+          signature,
+          time: Date.now(),
+          name: eventName,
+          data
+        };
+        callback(event);
+      }
+    );
+    return () => {
+      program.removeEventListener(listener);
+    };
+  }, [eventName, program, ...deps]);
+}
+function useWhiskyEvents(eventName, props = {}) {
+  const { signatureLimit = 30 } = props;
+  const { connection } = (0, import_wallet_adapter_react7.useConnection)();
+  const [events, setEvents] = import_react9.default.useState([]);
+  const address = props.address ?? import_core6.PROGRAM_ID;
+  import_react9.default.useEffect(
+    () => {
+      (0, import_core6.fetchWhiskyTransactions)(
+        connection,
+        address,
+        { limit: signatureLimit }
+      ).then((x) => setEvents(x));
+    },
+    [connection, signatureLimit, address]
+  );
+  return import_react9.default.useMemo(
+    () => events.filter((x) => x.name === eventName),
+    [eventName, events]
+  );
+}
+
 // src/hooks/useWagerInput.ts
-var import_react8 = __toESM(require("react"));
+var import_react10 = __toESM(require("react"));
 
 // src/hooks/index.ts
 function useWhiskyPlatformContext() {
-  return import_react9.default.useContext(WhiskyPlatformContext);
+  return import_react11.default.useContext(WhiskyPlatformContext);
 }
 function useCurrentPool() {
-  const context = import_react9.default.useContext(WhiskyPlatformContext);
+  const context = import_react11.default.useContext(WhiskyPlatformContext);
   return context.selectedPool;
 }
 function useCurrentToken() {
-  const { token } = import_react9.default.useContext(WhiskyPlatformContext).selectedPool;
+  const { token } = import_react11.default.useContext(WhiskyPlatformContext).selectedPool;
   return useTokenMeta(token);
 }
 function useFees() {
-  const context = import_react9.default.useContext(WhiskyPlatformContext);
+  const context = import_react11.default.useContext(WhiskyPlatformContext);
   const pool = useCurrentPool();
   const creatorFee = context.defaultCreatorFee;
   const jackpotFee = context.defaultJackpotFee;
@@ -619,21 +705,21 @@ var import_web36 = require("@solana/web3.js");
 var REFERRAL_IDL = { version: "0.1.0", name: "refer_program", instructions: [{ name: "configReferAccount", accounts: [{ name: "authority", isMut: true, isSigner: true }, { name: "referAccount", isMut: true, isSigner: false }, { name: "creator", isMut: false, isSigner: false }, { name: "systemProgram", isMut: false, isSigner: false }], args: [{ name: "referrer", type: "publicKey" }] }, { name: "closeReferAccount", accounts: [{ name: "authority", isMut: true, isSigner: true }, { name: "referAccount", isMut: true, isSigner: false }, { name: "creator", isMut: false, isSigner: false }, { name: "systemProgram", isMut: false, isSigner: false }], args: [] }], accounts: [{ name: "referAccount", type: { kind: "struct", fields: [{ name: "referrer", type: "publicKey" }] } }] };
 
 // src/referral/program.ts
-var PROGRAM_ID = new import_web36.PublicKey("RefwFk2PPNd9bPehSyAkrkrehSHkvz6mTAHTNe8v9vH");
+var PROGRAM_ID2 = new import_web36.PublicKey("RefwFk2PPNd9bPehSyAkrkrehSHkvz6mTAHTNe8v9vH");
 var getReferrerPda = (creator, authority) => import_web36.PublicKey.findProgramAddressSync([
   creator.toBytes(),
   authority.toBytes()
-], PROGRAM_ID)[0];
+], PROGRAM_ID2)[0];
 var createReferral = async (provider, creator, referAccount) => {
-  const referralProgram = new import_anchor.Program(REFERRAL_IDL, PROGRAM_ID, provider);
+  const referralProgram = new import_anchor.Program(REFERRAL_IDL, PROGRAM_ID2, provider);
   return referralProgram.methods.configReferAccount(referAccount).accounts({ referAccount: getReferrerPda(creator, provider.wallet.publicKey), creator }).instruction();
 };
 var closeReferral = async (provider, creator) => {
-  const referralProgram = new import_anchor.Program(REFERRAL_IDL, PROGRAM_ID, provider);
+  const referralProgram = new import_anchor.Program(REFERRAL_IDL, PROGRAM_ID2, provider);
   return referralProgram.methods.closeReferAccount().accounts({ referAccount: getReferrerPda(creator, provider.wallet.publicKey), creator }).instruction();
 };
 var fetchReferral = async (provider, pda) => {
-  const referralProgram = new import_anchor.Program(REFERRAL_IDL, PROGRAM_ID, provider);
+  const referralProgram = new import_anchor.Program(REFERRAL_IDL, PROGRAM_ID2, provider);
   const account = await referralProgram.account.referAccount.fetch(pda);
   if (!account)
     return null;
@@ -729,10 +815,10 @@ function useWhiskyContext2() {
   };
 }
 function useWalletAddress2() {
-  const { publicKey } = (0, import_wallet_adapter_react7.useWallet)();
+  const { publicKey } = (0, import_wallet_adapter_react8.useWallet)();
   return publicKey;
 }
-var ReferralContext = (0, import_react10.createContext)({
+var ReferralContext = (0, import_react12.createContext)({
   referrerAddress: null,
   isOnChain: false,
   prefix: defaultPrefix,
@@ -747,12 +833,12 @@ function ReferralProvider({
   storage = localStorage,
   autoAccept = true
 }) {
-  const wallet = (0, import_wallet_adapter_react7.useWallet)();
+  const wallet = (0, import_wallet_adapter_react8.useWallet)();
   const owner = useWalletAddress2();
   const whiskyContext = useWhiskyContext2();
   const whiskyPlatformContext = useWhiskyPlatformContext();
-  const [isFetchingOnChain, setIsFetchingOnChain] = (0, import_react10.useState)(false);
-  const [referralCache, setReferralCache] = (0, import_react10.useState)({ address: null, isOnChain: false });
+  const [isFetchingOnChain, setIsFetchingOnChain] = (0, import_react12.useState)(false);
+  const [referralCache, setReferralCache] = (0, import_react12.useState)({ address: null, isOnChain: false });
   const getOnChainAddress = async () => {
     try {
       if (!owner || !whiskyContext.provider?.anchorProvider)
@@ -773,7 +859,7 @@ function ReferralProvider({
       return;
     }
   };
-  (0, import_react10.useEffect)(() => {
+  (0, import_react12.useEffect)(() => {
     let isCancelled = false;
     const handleReferral = async () => {
       const urlAddress = getReferralAddressFromUrl(prefix);
@@ -827,7 +913,7 @@ function ReferralProvider({
     wallet.publicKey?.toString(),
     prefix
   ]);
-  (0, import_react10.useEffect)(() => {
+  (0, import_react12.useEffect)(() => {
     if (!referralCache.address)
       return;
     return whiskyContext.addPlugin(
@@ -853,7 +939,7 @@ function ReferralProvider({
     storage.setItem("referral-new", address.toString());
     setReferralCache({ address, isOnChain });
   };
-  return /* @__PURE__ */ import_react10.default.createElement(ReferralContext.Provider, { value: {
+  return /* @__PURE__ */ import_react12.default.createElement(ReferralContext.Provider, { value: {
     prefix,
     isOnChain: referralCache.isOnChain,
     referrerAddress: referralCache.address,
@@ -864,16 +950,16 @@ function ReferralProvider({
 }
 
 // src/WhiskyPlatformProvider.tsx
-var WhiskyPlatformContext = import_react11.default.createContext(null);
+var WhiskyPlatformContext = import_react13.default.createContext(null);
 function WhiskyPlatformProvider(props) {
   const {
     creator,
     children,
     referral = { prefix: "code", fee: 0.01, autoAccept: true }
   } = props;
-  const [selectedPool, setSelectedPool] = import_react11.default.useState(props.defaultPool ?? { token: import_core6.NATIVE_MINT });
-  const [clientSeed, setClientSeed] = import_react11.default.useState(String(Math.random() * 1e9 | 0));
-  const [defaultJackpotFee, setDefaultJackpotFee] = import_react11.default.useState(props.defaultJackpotFee ?? 1e-3);
+  const [selectedPool, setSelectedPool] = import_react13.default.useState(props.defaultPool ?? { token: import_core7.NATIVE_MINT });
+  const [clientSeed, setClientSeed] = import_react13.default.useState(String(Math.random() * 1e9 | 0));
+  const [defaultJackpotFee, setDefaultJackpotFee] = import_react13.default.useState(props.defaultJackpotFee ?? 1e-3);
   const defaultCreatorFee = props.defaultCreatorFee ?? 0.01;
   const setPool = (tokenMint, authority = new import_web310.PublicKey("11111111111111111111111111111111")) => {
     setSelectedPool({
@@ -884,7 +970,7 @@ function WhiskyPlatformProvider(props) {
   const setToken = (tokenMint) => {
     setPool(tokenMint);
   };
-  return /* @__PURE__ */ import_react11.default.createElement(
+  return /* @__PURE__ */ import_react13.default.createElement(
     WhiskyPlatformContext.Provider,
     {
       value: {
@@ -902,23 +988,26 @@ function WhiskyPlatformProvider(props) {
         defaultCreatorFee
       }
     },
-    /* @__PURE__ */ import_react11.default.createElement(ReferralProvider, { ...referral }, /* @__PURE__ */ import_react11.default.createElement(PortalProvider, null, children))
+    /* @__PURE__ */ import_react13.default.createElement(ReferralProvider, { ...referral }, /* @__PURE__ */ import_react13.default.createElement(PortalProvider, null, children))
   );
 }
 
+// src/index.ts
+var import_core8 = require("@whisky-gaming/core");
+
 // src/EffectTest.tsx
-var import_react13 = __toESM(require("react"));
+var import_react15 = __toESM(require("react"));
 
 // src/hooks/useAnimationFrame.ts
-var import_react12 = require("react");
+var import_react14 = require("react");
 var useAnimationFrame_default = (cb) => {
   if (typeof performance === "undefined" || typeof window === "undefined") {
     return;
   }
-  const cbRef = (0, import_react12.useRef)(null);
-  const frame = (0, import_react12.useRef)();
-  const init = (0, import_react12.useRef)(performance.now());
-  const last = (0, import_react12.useRef)(performance.now());
+  const cbRef = (0, import_react14.useRef)(null);
+  const frame = (0, import_react14.useRef)();
+  const init = (0, import_react14.useRef)(performance.now());
+  const last = (0, import_react14.useRef)(performance.now());
   cbRef.current = cb;
   const animate = (now) => {
     cbRef.current({
@@ -928,7 +1017,7 @@ var useAnimationFrame_default = (cb) => {
     last.current = now;
     frame.current = requestAnimationFrame(animate);
   };
-  (0, import_react12.useLayoutEffect)(() => {
+  (0, import_react14.useLayoutEffect)(() => {
     frame.current = requestAnimationFrame(animate);
     return () => {
       frame.current && cancelAnimationFrame(frame.current);
@@ -938,11 +1027,11 @@ var useAnimationFrame_default = (cb) => {
 
 // src/EffectTest.tsx
 function EffectTest({ src }) {
-  const parts = import_react13.default.useRef(Array.from({ length: 25 }).map(() => ({
+  const parts = import_react15.default.useRef(Array.from({ length: 25 }).map(() => ({
     x: Math.random(),
     y: -Math.random() * 600
   })));
-  const image = import_react13.default.useMemo(
+  const image = import_react15.default.useMemo(
     () => {
       const image2 = document.createElement("img");
       image2.src = src;
@@ -960,7 +1049,7 @@ function EffectTest({ src }) {
       );
     }
   );
-  return /* @__PURE__ */ import_react13.default.createElement(
+  return /* @__PURE__ */ import_react15.default.createElement(
     WhiskyUi.Canvas,
     {
       zIndex: 99,
@@ -990,8 +1079,8 @@ function EffectTest({ src }) {
 }
 
 // src/ErrorBoundary.tsx
-var import_react14 = __toESM(require("react"));
-var ErrorBoundary = class extends import_react14.default.Component {
+var import_react16 = __toESM(require("react"));
+var ErrorBoundary = class extends import_react16.default.Component {
   constructor() {
     super(...arguments);
     this.state = { hasError: false, error: null };
@@ -1014,10 +1103,10 @@ var ErrorBoundary = class extends import_react14.default.Component {
 };
 
 // src/GameContext.tsx
-var import_react26 = __toESM(require("react"));
+var import_react28 = __toESM(require("react"));
 
 // src/components/Button.tsx
-var import_react15 = __toESM(require("react"));
+var import_react17 = __toESM(require("react"));
 var import_styled_components = __toESM(require("styled-components"));
 var StyledButton = import_styled_components.default.button`
   --color: var(--whisky-ui-button-default-color);
@@ -1054,7 +1143,7 @@ var StyledButton = import_styled_components.default.button`
   }
 `;
 function Button(props) {
-  return /* @__PURE__ */ import_react15.default.createElement(
+  return /* @__PURE__ */ import_react17.default.createElement(
     StyledButton,
     {
       disabled: props.disabled,
@@ -1067,12 +1156,12 @@ function Button(props) {
 }
 
 // src/components/Canvas.tsx
-var import_react16 = __toESM(require("react"));
-var WhiskyCanvas = import_react16.default.forwardRef(function Canvas(props, forwardRef) {
+var import_react18 = __toESM(require("react"));
+var WhiskyCanvas = import_react18.default.forwardRef(function Canvas(props, forwardRef) {
   const { render, zIndex = 0, style, ...rest } = props;
-  const wrapper = import_react16.default.useRef(null);
-  const canvas = import_react16.default.useRef(null);
-  import_react16.default.useImperativeHandle(forwardRef, () => canvas.current);
+  const wrapper = import_react18.default.useRef(null);
+  const canvas = import_react18.default.useRef(null);
+  import_react18.default.useImperativeHandle(forwardRef, () => canvas.current);
   useAnimationFrame_default(
     (time) => {
       const ctx = canvas.current.getContext("2d");
@@ -1092,7 +1181,7 @@ var WhiskyCanvas = import_react16.default.forwardRef(function Canvas(props, forw
       ctx.restore();
     }
   );
-  import_react16.default.useLayoutEffect(() => {
+  import_react18.default.useLayoutEffect(() => {
     let timeout;
     const resize = () => {
       canvas.current.width = wrapper.current.clientWidth * window.devicePixelRatio;
@@ -1113,11 +1202,11 @@ var WhiskyCanvas = import_react16.default.forwardRef(function Canvas(props, forw
       clearTimeout(timeout);
     };
   }, []);
-  return /* @__PURE__ */ import_react16.default.createElement("div", { ref: wrapper, style: { position: "absolute", left: 0, top: 0, width: "100%", height: "100%", zIndex } }, /* @__PURE__ */ import_react16.default.createElement("canvas", { ...rest, style: { width: "100%", height: "100%", ...style }, ref: canvas }));
+  return /* @__PURE__ */ import_react18.default.createElement("div", { ref: wrapper, style: { position: "absolute", left: 0, top: 0, width: "100%", height: "100%", zIndex } }, /* @__PURE__ */ import_react18.default.createElement("canvas", { ...rest, style: { width: "100%", height: "100%", ...style }, ref: canvas }));
 });
 
 // src/components/ResponsiveSize.tsx
-var import_react17 = __toESM(require("react"));
+var import_react19 = __toESM(require("react"));
 var import_styled_components2 = __toESM(require("styled-components"));
 var Responsive = import_styled_components2.default.div`
   justify-content: center;
@@ -1131,10 +1220,10 @@ var Responsive = import_styled_components2.default.div`
   top: 0;
 `;
 function ResponsiveSize({ children, maxScale = 1, overlay, ...props }) {
-  const wrapper = import_react17.default.useRef(null);
-  const inner = import_react17.default.useRef(null);
-  const content = import_react17.default.useRef(null);
-  import_react17.default.useLayoutEffect(() => {
+  const wrapper = import_react19.default.useRef(null);
+  const inner = import_react19.default.useRef(null);
+  const content = import_react19.default.useRef(null);
+  import_react19.default.useLayoutEffect(() => {
     let timeout;
     const resize = () => {
       const ww = wrapper.current.clientWidth / (content.current.scrollWidth + 40);
@@ -1157,11 +1246,11 @@ function ResponsiveSize({ children, maxScale = 1, overlay, ...props }) {
       clearTimeout(timeout);
     };
   }, [maxScale]);
-  return /* @__PURE__ */ import_react17.default.createElement(Responsive, { ...props, ref: wrapper }, /* @__PURE__ */ import_react17.default.createElement("div", { ref: inner }, /* @__PURE__ */ import_react17.default.createElement("div", { ref: content }, children)));
+  return /* @__PURE__ */ import_react19.default.createElement(Responsive, { ...props, ref: wrapper }, /* @__PURE__ */ import_react19.default.createElement("div", { ref: inner }, /* @__PURE__ */ import_react19.default.createElement("div", { ref: content }, children)));
 }
 
 // src/components/Select.tsx
-var import_react18 = __toESM(require("react"));
+var import_react20 = __toESM(require("react"));
 var import_styled_components3 = __toESM(require("styled-components"));
 var StyledWrapper = import_styled_components3.default.div`
   position: relative;
@@ -1195,16 +1284,16 @@ var StyledPopup = import_styled_components3.default.div`
   }
 `;
 function Select(props) {
-  const [open, setOpen] = import_react18.default.useState(false);
+  const [open, setOpen] = import_react20.default.useState(false);
   const set = (val) => {
     setOpen(false);
     props.onChange(val);
   };
-  return /* @__PURE__ */ import_react18.default.createElement(StyledWrapper, { className: props.className }, /* @__PURE__ */ import_react18.default.createElement(Button, { disabled: props.disabled, onClick: () => setOpen(!open) }, props.label ? props.label(props.value) : JSON.stringify(props.value)), open && /* @__PURE__ */ import_react18.default.createElement(StyledPopup, null, props.options.map((val, i) => /* @__PURE__ */ import_react18.default.createElement("button", { key: i, onClick: () => set(val) }, props.label ? props.label(val) : JSON.stringify(val)))));
+  return /* @__PURE__ */ import_react20.default.createElement(StyledWrapper, { className: props.className }, /* @__PURE__ */ import_react20.default.createElement(Button, { disabled: props.disabled, onClick: () => setOpen(!open) }, props.label ? props.label(props.value) : JSON.stringify(props.value)), open && /* @__PURE__ */ import_react20.default.createElement(StyledPopup, null, props.options.map((val, i) => /* @__PURE__ */ import_react20.default.createElement("button", { key: i, onClick: () => set(val) }, props.label ? props.label(val) : JSON.stringify(val)))));
 }
 
 // src/components/Switch.tsx
-var import_react19 = __toESM(require("react"));
+var import_react21 = __toESM(require("react"));
 var import_styled_components4 = __toESM(require("styled-components"));
 var SwitchButton = import_styled_components4.default.input`
   all: unset;
@@ -1240,7 +1329,7 @@ var SwitchButton = import_styled_components4.default.input`
   }
 `;
 function Switch(props) {
-  return /* @__PURE__ */ import_react19.default.createElement(
+  return /* @__PURE__ */ import_react21.default.createElement(
     SwitchButton,
     {
       type: "checkbox",
@@ -1253,7 +1342,7 @@ function Switch(props) {
 }
 
 // src/components/TextInput.tsx
-var import_react20 = __toESM(require("react"));
+var import_react22 = __toESM(require("react"));
 var import_styled_components5 = __toESM(require("styled-components"));
 var StyledTextInput = import_styled_components5.default.input`
   color: var(--whisky-ui-input-color);
@@ -1275,7 +1364,7 @@ var StyledTextInput = import_styled_components5.default.input`
   }
 `;
 function TextInput({ onChange, ...props }) {
-  return /* @__PURE__ */ import_react20.default.createElement(
+  return /* @__PURE__ */ import_react22.default.createElement(
     StyledTextInput,
     {
       type: "text",
@@ -1287,13 +1376,13 @@ function TextInput({ onChange, ...props }) {
 }
 
 // src/components/WagerInput.tsx
-var import_react23 = __toESM(require("react"));
+var import_react25 = __toESM(require("react"));
 var import_styled_components6 = __toESM(require("styled-components"));
 
 // src/components/TokenValue.tsx
-var import_react21 = __toESM(require("react"));
+var import_react23 = __toESM(require("react"));
 function TokenValue(props) {
-  const context = import_react21.default.useContext(WhiskyPlatformContext);
+  const context = import_react23.default.useContext(WhiskyPlatformContext);
   const mint = props.mint ?? context?.selectedPool.token;
   if (!mint) {
     throw new Error('"mint" prop is required when not using WhiskyPlatformProvider');
@@ -1315,13 +1404,13 @@ function TokenValue(props) {
     }
     return tokenAmount.toLocaleString(void 0, { maximumFractionDigits: Math.floor(tokenAmount) > 100 ? 1 : 4 });
   })();
-  return /* @__PURE__ */ import_react21.default.createElement(import_react21.default.Fragment, null, displayedAmount, " ", suffix);
+  return /* @__PURE__ */ import_react23.default.createElement(import_react23.default.Fragment, null, displayedAmount, " ", suffix);
 }
 
 // src/hooks/useOnClickOutside.ts
-var import_react22 = __toESM(require("react"));
+var import_react24 = __toESM(require("react"));
 function useOnClickOutside(ref, handler) {
-  import_react22.default.useEffect(() => {
+  import_react24.default.useEffect(() => {
     const listener = (event) => {
       if (!ref.current || ref.current.contains(event.target)) {
         return;
@@ -1444,12 +1533,12 @@ var WagerAmount = import_styled_components6.default.div`
 function WagerInput(props) {
   const whisky = useWhisky();
   const token = useCurrentToken();
-  const [input, setInput] = import_react23.default.useState("");
+  const [input, setInput] = import_react25.default.useState("");
   const balance = useUserBalance();
   const fees = useFees();
-  const [isEditing, setIsEditing] = import_react23.default.useState(false);
-  const ref = (0, import_react23.useRef)(null);
-  import_react23.default.useEffect(
+  const [isEditing, setIsEditing] = import_react25.default.useState(false);
+  const ref = (0, import_react25.useRef)(null);
+  import_react25.default.useEffect(
     () => {
       props.onChange(token.baseWager);
     },
@@ -1473,13 +1562,13 @@ function WagerInput(props) {
     const nextValue = Math.max(token.baseWager, props.value * 2 || token.baseWager);
     props.onChange(Math.max(0, Math.min(nextValue, availableBalance - nextValue * fees)));
   };
-  return /* @__PURE__ */ import_react23.default.createElement("div", { ref, className: props.className, style: { position: "relative" } }, /* @__PURE__ */ import_react23.default.createElement(StyledWagerInput, { $edit: isEditing }, /* @__PURE__ */ import_react23.default.createElement(Flex, { onClick: () => !whisky.isPlaying && startEditInput() }, /* @__PURE__ */ import_react23.default.createElement(TokenImage, { src: token.image }), !isEditing || props.options ? /* @__PURE__ */ import_react23.default.createElement(
+  return /* @__PURE__ */ import_react25.default.createElement("div", { ref, className: props.className, style: { position: "relative" } }, /* @__PURE__ */ import_react25.default.createElement(StyledWagerInput, { $edit: isEditing }, /* @__PURE__ */ import_react25.default.createElement(Flex, { onClick: () => !whisky.isPlaying && startEditInput() }, /* @__PURE__ */ import_react25.default.createElement(TokenImage, { src: token.image }), !isEditing || props.options ? /* @__PURE__ */ import_react25.default.createElement(
     WagerAmount,
     {
       title: (props.value / 10 ** token.decimals).toLocaleString()
     },
-    /* @__PURE__ */ import_react23.default.createElement(TokenValue, { suffix: "", amount: props.value, mint: token.mint })
-  ) : /* @__PURE__ */ import_react23.default.createElement(
+    /* @__PURE__ */ import_react25.default.createElement(TokenValue, { suffix: "", amount: props.value, mint: token.mint })
+  ) : /* @__PURE__ */ import_react25.default.createElement(
     Input,
     {
       value: input,
@@ -1495,17 +1584,17 @@ function WagerInput(props) {
       autoFocus: true,
       onFocus: (e) => e.target.select()
     }
-  )), !props.options && /* @__PURE__ */ import_react23.default.createElement(Buttons, null, /* @__PURE__ */ import_react23.default.createElement(InputButton, { disabled: whisky.isPlaying, onClick: () => props.onChange(props.value / 2) }, "x.5"), /* @__PURE__ */ import_react23.default.createElement(InputButton, { disabled: whisky.isPlaying, onClick: x2 }, "x2"))), props.options && isEditing && /* @__PURE__ */ import_react23.default.createElement(StyledPopup2, null, props.options.map((option, i) => /* @__PURE__ */ import_react23.default.createElement("button", { key: i, onClick: () => {
+  )), !props.options && /* @__PURE__ */ import_react25.default.createElement(Buttons, null, /* @__PURE__ */ import_react25.default.createElement(InputButton, { disabled: whisky.isPlaying, onClick: () => props.onChange(props.value / 2) }, "x.5"), /* @__PURE__ */ import_react25.default.createElement(InputButton, { disabled: whisky.isPlaying, onClick: x2 }, "x2"))), props.options && isEditing && /* @__PURE__ */ import_react25.default.createElement(StyledPopup2, null, props.options.map((option, i) => /* @__PURE__ */ import_react25.default.createElement("button", { key: i, onClick: () => {
     props.onChange(option);
     setIsEditing(false);
-  } }, /* @__PURE__ */ import_react23.default.createElement(TokenValue, { amount: option })))));
+  } }, /* @__PURE__ */ import_react25.default.createElement(TokenValue, { amount: option })))));
 }
 
 // src/components/WagerSelect.tsx
-var import_react24 = __toESM(require("react"));
+var import_react26 = __toESM(require("react"));
 function WagerSelect(props) {
   const whisky = useWhisky();
-  return /* @__PURE__ */ import_react24.default.createElement(
+  return /* @__PURE__ */ import_react26.default.createElement(
     Select,
     {
       className: props.className,
@@ -1513,13 +1602,13 @@ function WagerSelect(props) {
       value: props.value,
       onChange: props.onChange,
       disabled: whisky.isPlaying,
-      label: (value) => /* @__PURE__ */ import_react24.default.createElement(TokenValue, { amount: value })
+      label: (value) => /* @__PURE__ */ import_react26.default.createElement(TokenValue, { amount: value })
     }
   );
 }
 
 // src/hooks/useSound.ts
-var import_react25 = require("react");
+var import_react27 = require("react");
 var import_tone = require("tone");
 var import_zustand2 = require("zustand");
 var useSoundStore = (0, import_zustand2.create)(
@@ -1559,7 +1648,7 @@ var Sound = class {
 function useSound(definition) {
   const store = useSoundStore();
   const sources = Object.keys(definition);
-  const soundById = (0, import_react25.useMemo)(
+  const soundById = (0, import_react27.useMemo)(
     () => Object.entries(definition).map(([id, url]) => {
       const sound = new Sound(url);
       return { id, sound };
@@ -1569,8 +1658,8 @@ function useSound(definition) {
     }), {}),
     [...sources]
   );
-  const sounds = (0, import_react25.useMemo)(() => Object.entries(soundById).map(([_, s]) => s), [soundById]);
-  (0, import_react25.useEffect)(
+  const sounds = (0, import_react27.useMemo)(() => Object.entries(soundById).map(([_, s]) => s), [soundById]);
+  (0, import_react27.useEffect)(
     () => {
       return () => {
         sounds.forEach((sound) => {
@@ -1581,7 +1670,7 @@ function useSound(definition) {
     },
     [soundById]
   );
-  (0, import_react25.useEffect)(
+  (0, import_react27.useEffect)(
     () => {
       sounds.forEach((sound) => {
         sound.gain.set({ gain: store.volume });
@@ -1589,7 +1678,7 @@ function useSound(definition) {
     },
     [store.volume]
   );
-  const play = (0, import_react25.useCallback)(
+  const play = (0, import_react27.useCallback)(
     (soundId, params) => {
       const gain = params?.gain ?? 1;
       const opts = { ...params, gain: gain * store.get().volume };
@@ -1604,13 +1693,13 @@ function useSound(definition) {
 }
 
 // src/GameContext.tsx
-var GameContext = import_react26.default.createContext({ game: { id: "unknown", app: null } });
+var GameContext = import_react28.default.createContext({ game: { id: "unknown", app: null } });
 function Game({ game, children, errorFallback }) {
-  return /* @__PURE__ */ import_react26.default.createElement(GameContext.Provider, { key: game.id, value: { game } }, /* @__PURE__ */ import_react26.default.createElement(ErrorBoundary, { fallback: errorFallback }, /* @__PURE__ */ import_react26.default.createElement(import_react26.default.Suspense, { fallback: /* @__PURE__ */ import_react26.default.createElement(import_react26.default.Fragment, null) }, /* @__PURE__ */ import_react26.default.createElement(game.app, { ...game.props }))), children);
+  return /* @__PURE__ */ import_react28.default.createElement(GameContext.Provider, { key: game.id, value: { game } }, /* @__PURE__ */ import_react28.default.createElement(ErrorBoundary, { fallback: errorFallback }, /* @__PURE__ */ import_react28.default.createElement(import_react28.default.Suspense, { fallback: /* @__PURE__ */ import_react28.default.createElement(import_react28.default.Fragment, null) }, /* @__PURE__ */ import_react28.default.createElement(game.app, { ...game.props }))), children);
 }
 function PlayButton(props) {
   const whisky = useWhisky();
-  return /* @__PURE__ */ import_react26.default.createElement(Portal, { target: "play" }, /* @__PURE__ */ import_react26.default.createElement(
+  return /* @__PURE__ */ import_react28.default.createElement(Portal, { target: "play" }, /* @__PURE__ */ import_react28.default.createElement(
     Button,
     {
       disabled: whisky.isPlaying || props.disabled,
@@ -1640,6 +1729,18 @@ var WhiskyUi = {
   Select,
   TextInput
 };
+
+// src/SendTransactionContext.tsx
+var import_react29 = __toESM(require("react"));
+var defaultValue = {
+  priorityFee: 100001,
+  simulationUnits: 14e5,
+  computeUnitLimitMargin: 1.1
+};
+var SendTransactionContext = import_react29.default.createContext(defaultValue);
+function SendTransactionProvider({ children, ...props }) {
+  return /* @__PURE__ */ import_react29.default.createElement(SendTransactionContext.Provider, { value: { ...defaultValue, ...props } }, children);
+}
 
 // src/makeHeliusTokenFetcher.ts
 var import_web311 = require("@solana/web3.js");
@@ -1677,8 +1778,8 @@ function makeHeliusTokenFetcher(heliusApiKey, params = {}) {
 }
 
 // src/referral/useReferral.ts
-var import_wallet_adapter_react8 = require("@solana/wallet-adapter-react");
-var import_react27 = require("react");
+var import_wallet_adapter_react9 = require("@solana/wallet-adapter-react");
+var import_react30 = require("react");
 function useWhiskyProvider2() {
   const { provider } = useWhisky();
   return { anchorProvider: provider?.anchorProvider };
@@ -1690,12 +1791,12 @@ function useSendTransaction2() {
   };
 }
 function useReferral() {
-  const { clearCache, setCache, isOnChain, referrerAddress, referralStatus, prefix } = (0, import_react27.useContext)(ReferralContext);
-  const wallet = (0, import_wallet_adapter_react8.useWallet)();
+  const { clearCache, setCache, isOnChain, referrerAddress, referralStatus, prefix } = (0, import_react30.useContext)(ReferralContext);
+  const wallet = (0, import_wallet_adapter_react9.useWallet)();
   const platform = useWhiskyPlatformContext();
   const provider = useWhiskyProvider2();
   const sendTransaction = useSendTransaction2();
-  const referralLink = (0, import_react27.useMemo)(() => wallet.publicKey && getReferralLink(prefix, wallet.publicKey), [prefix, wallet.publicKey?.toString()]);
+  const referralLink = (0, import_react30.useMemo)(() => wallet.publicKey && getReferralLink(prefix, wallet.publicKey), [prefix, wallet.publicKey?.toString()]);
   const copyLinkToClipboard = () => {
     if (!wallet.publicKey) {
       throw new Error("NOT_CONNECTED");
@@ -1760,22 +1861,22 @@ function useReferral() {
 }
 
 // src/index.ts
-var GameContextObj = (0, import_react28.createContext)({
+var GameContextObj = (0, import_react31.createContext)({
   game: null,
   setGame: () => {
   }
 });
 function useGame() {
-  return (0, import_react28.useContext)(GameContextObj);
+  return (0, import_react31.useContext)(GameContextObj);
 }
 function useWagerInput2(initial) {
-  const [_wager, setWager] = import_react28.default.useState(initial);
-  const context = import_react28.default.useContext(WhiskyPlatformContext);
+  const [_wager, setWager] = import_react31.default.useState(initial);
+  const context = import_react31.default.useContext(WhiskyPlatformContext);
   const token = useTokenMeta(context.selectedPool.token);
   return [_wager ?? token.baseWager, setWager];
 }
 function useTokenList() {
-  return import_react28.default.useContext(TokenMetaContext).tokens ?? [];
+  return import_react31.default.useContext(TokenMetaContext).tokens ?? [];
 }
 var WhiskyStandardTokens = {
   fake: {
@@ -1809,12 +1910,15 @@ var WhiskyStandardTokens = {
 };
 // Annotate the CommonJS export names for ESM import in node:
 0 && (module.exports = {
+  BPS_PER_WHOLE,
   EffectTest,
   FAKE_TOKEN_MINT,
   GameContext,
   PlayButton,
   ReferralContext,
   ReferralProvider,
+  SendTransactionContext,
+  SendTransactionProvider,
   TokenMetaContext,
   TokenMetaProvider,
   TokenValue,
@@ -1839,12 +1943,15 @@ var WhiskyStandardTokens = {
   useSendTransaction,
   useTokenList,
   useTokenMeta,
+  useTransactionError,
   useTransactionStore,
   useUserBalance,
   useWagerInput,
   useWalletAddress,
   useWhisky,
   useWhiskyContext,
+  useWhiskyEventListener,
+  useWhiskyEvents,
   useWhiskyPlatformContext,
   useWhiskyPlay,
   useWhiskyProgram,

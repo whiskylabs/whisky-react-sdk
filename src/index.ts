@@ -4,6 +4,10 @@ import { WhiskyPlatformContext } from './WhiskyPlatformProvider'
 import { TokenMetaContext } from './TokenMetaProvider'
 import { useTokenMeta } from './hooks'
 
+// Re-export core constants and types
+export { BPS_PER_WHOLE } from '@whisky-gaming/core'
+export type { WhiskyTransaction, WhiskyEventType, AnyWhiskyEvent } from '@whisky-gaming/core'
+
 // Core React hooks and provider
 export * from './WhiskyProvider'
 export * from './plugins'
@@ -21,6 +25,7 @@ export * from './ErrorBoundary'
 export * from './WhiskyPlatformProvider'
 export * from './GameContext'
 export * from './TokenMetaProvider'
+export * from './SendTransactionContext'
 export * from './components/Canvas'
 export * from './components/TokenValue'
 export * from './hooks'
