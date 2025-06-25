@@ -16,6 +16,7 @@ export interface WhiskyPlayInput {
   token?: string | PublicKey
   poolAuthority?: string | PublicKey
   metadata?: (string | number)[]
+  useBonus?: boolean
 }
 
 export function useWhiskyPlay() {

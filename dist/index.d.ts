@@ -106,6 +106,7 @@ interface WhiskyPlayInput {
     token?: string | PublicKey;
     poolAuthority?: string | PublicKey;
     metadata?: (string | number)[];
+    useBonus?: boolean;
 }
 declare function useWhiskyPlay(): (input: WhiskyPlayInput, additionalInstructions?: TransactionInstruction[], opts?: SendTransactionOptions & {
     lookupTables?: PublicKey[];
@@ -499,7 +500,7 @@ interface GameBundle<T = any> {
     props?: any;
 }
 declare function useGame(): {
-    game: GameBundle | null;
+    game: GameBundle<any>;
     setGame: (game: GameBundle | null) => void;
 };
 declare function useWagerInput(initial?: number): readonly [number, React.Dispatch<React.SetStateAction<number | undefined>>];

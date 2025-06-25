@@ -1798,7 +1798,17 @@ var GameContextObj = createContext2({
   }
 });
 function useGame() {
-  return useContext2(GameContextObj);
+  const gameContext = useContext2(GameContextObj);
+  const defaultGame = {
+    id: "default",
+    app: () => null,
+    meta: {},
+    props: {}
+  };
+  return {
+    game: gameContext.game || defaultGame,
+    setGame: gameContext.setGame
+  };
 }
 function useWagerInput2(initial) {
   const [_wager, setWager] = React25.useState(initial);

@@ -1871,7 +1871,17 @@ var GameContextObj = (0, import_react31.createContext)({
   }
 });
 function useGame() {
-  return (0, import_react31.useContext)(GameContextObj);
+  const gameContext = (0, import_react31.useContext)(GameContextObj);
+  const defaultGame = {
+    id: "default",
+    app: () => null,
+    meta: {},
+    props: {}
+  };
+  return {
+    game: gameContext.game || defaultGame,
+    setGame: gameContext.setGame
+  };
 }
 function useWagerInput2(initial) {
   const [_wager, setWager] = import_react31.default.useState(initial);

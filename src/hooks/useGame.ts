@@ -1,5 +1,6 @@
 import { PublicKey, TransactionInstruction } from '@solana/web3.js'
-import { WhiskyPlayInput, useWhiskyPlay } from './useWhiskyPlay'
+import { WhiskyPlayInput } from './useWhiskyPlay'
+import { useWhiskyPlay } from './useWhiskyPlay'
 import { useNextResult } from './useWhisky'
 import React from 'react'
 import { useUserBalance } from '.'
@@ -8,12 +9,22 @@ import { GameContext } from '../GameContext'
 import { useFakeToken } from './useFakeToken'
 
 export function useGame() {
-  const game = React.useContext(GameContext)
+  const gameContext = React.useContext(GameContext)
   const fake = useFakeToken()
   const context = React.useContext(WhiskyPlatformContext)
   const balances = useUserBalance()
   const getNextResult = useNextResult()
   const whiskyPlay = useWhiskyPlay()
+
+  // Provide a default game to prevent null errors
+  const defaultGame = {
+    id: 'default',
+    app: () => null,
+    meta: {},
+    props: {}
+  }
+
+  const game = gameContext?.game || defaultGame
 
   const result = async () => {
     if (fake.isActive) {
@@ -27,7 +38,7 @@ export function useGame() {
     instructions: TransactionInstruction[] = [],
   ) => {
     const metaArgs = input.metadata ?? []
-    const metadata = ['0', game.game.id, ...metaArgs]
+    const metadata = ['0', game.id, ...metaArgs]
 
     const gameInput: WhiskyPlayInput = {
       ...input,
@@ -36,7 +47,7 @@ export function useGame() {
       clientSeed: context.clientSeed,
       creatorFee: context.defaultCreatorFee,
       jackpotFee: context.defaultJackpotFee,
-      token: context.selectedPool.token, // ,getPoolAddress(context.selectedPool.token, ),
+      token: context.selectedPool.token,
       poolAuthority: context.selectedPool.authority,
     }
 
@@ -49,7 +60,7 @@ export function useGame() {
 
   return {
     play,
-    game: game.game,
+    game,
     result,
   }
 }
