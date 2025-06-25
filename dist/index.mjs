@@ -41,7 +41,7 @@ function PortalTarget(props) {
 // src/referral/ReferralContext.tsx
 import { useWallet as useWallet5 } from "@solana/wallet-adapter-react";
 import { PublicKey as PublicKey9 } from "@solana/web3.js";
-import React9, { createContext, useEffect as useEffect3, useState as useState3 } from "react";
+import React9, { createContext, useEffect as useEffect4, useState as useState3 } from "react";
 
 // src/WhiskyProvider.tsx
 import { useConnection, useWallet } from "@solana/wallet-adapter-react";
@@ -592,6 +592,92 @@ function useWhiskyEvents(eventName, props = {}) {
 // src/hooks/useWagerInput.ts
 import React7 from "react";
 
+// src/hooks/useSound.ts
+import { useCallback as useCallback2, useEffect as useEffect3, useMemo as useMemo4 } from "react";
+import { Player, Gain } from "tone";
+import { create as create2 } from "zustand";
+var useSoundStore = create2(
+  (set, get) => ({
+    volume: 0.5,
+    masterGain: 0.5,
+    set: (volume) => set({ volume, masterGain: volume }),
+    get
+  })
+);
+var useWhiskyAudioStore = useSoundStore;
+var Sound = class {
+  constructor(url, autoPlay = false) {
+    this.player = new Player();
+    this.gain = new Gain();
+    this.ready = false;
+    this.url = url;
+    this.player.load(url).then((x) => {
+      this.ready = x.loaded;
+      this.player.connect(this.gain);
+      this.gain.toDestination();
+      if (autoPlay) {
+        this.player.loop = true;
+        this.player.start();
+      }
+    }).catch((err) => console.error("Failed to load audio", err));
+  }
+  play({ playbackRate = 1, gain = 0.1 } = {}) {
+    try {
+      this.player.playbackRate = playbackRate;
+      this.gain.set({ gain });
+      this.player.start();
+    } catch (err) {
+      console.warn("Failed to play sound", this.url, err);
+    }
+  }
+};
+function useSound(definition) {
+  const store = useSoundStore();
+  const sources = Object.keys(definition);
+  const soundById = useMemo4(
+    () => Object.entries(definition).map(([id, url]) => {
+      const sound = new Sound(url);
+      return { id, sound };
+    }).reduce((prev, { id, sound }) => ({
+      ...prev,
+      [id]: sound
+    }), {}),
+    [...sources]
+  );
+  const sounds = useMemo4(() => Object.entries(soundById).map(([_, s]) => s), [soundById]);
+  useEffect3(
+    () => {
+      return () => {
+        sounds.forEach((sound) => {
+          sound.player.stop();
+          sound.player.dispose();
+        });
+      };
+    },
+    [soundById]
+  );
+  useEffect3(
+    () => {
+      sounds.forEach((sound) => {
+        sound.gain.set({ gain: store.volume });
+      });
+    },
+    [store.volume]
+  );
+  const play = useCallback2(
+    (soundId, params) => {
+      const gain = params?.gain ?? 1;
+      const opts = { ...params, gain: gain * store.get().volume };
+      soundById[soundId].play(opts);
+    },
+    [soundById]
+  );
+  return {
+    play,
+    sounds: soundById
+  };
+}
+
 // src/hooks/index.ts
 function useWhiskyPlatformContext() {
   return React8.useContext(WhiskyPlatformContext);
@@ -789,7 +875,7 @@ function ReferralProvider({
       return;
     }
   };
-  useEffect3(() => {
+  useEffect4(() => {
     let isCancelled = false;
     const handleReferral = async () => {
       const urlAddress = getReferralAddressFromUrl(prefix);
@@ -843,7 +929,7 @@ function ReferralProvider({
     wallet.publicKey?.toString(),
     prefix
   ]);
-  useEffect3(() => {
+  useEffect4(() => {
     if (!referralCache.address)
       return;
     return whiskyContext.addPlugin(
@@ -1537,91 +1623,6 @@ function WagerSelect(props) {
   );
 }
 
-// src/hooks/useSound.ts
-import { useCallback as useCallback2, useEffect as useEffect4, useMemo as useMemo4 } from "react";
-import { Player, Gain } from "tone";
-import { create as create2 } from "zustand";
-var useSoundStore = create2(
-  (set, get) => ({
-    volume: 0.5,
-    masterGain: 0.5,
-    set: (volume) => set({ volume, masterGain: volume }),
-    get
-  })
-);
-var Sound = class {
-  constructor(url, autoPlay = false) {
-    this.player = new Player();
-    this.gain = new Gain();
-    this.ready = false;
-    this.url = url;
-    this.player.load(url).then((x) => {
-      this.ready = x.loaded;
-      this.player.connect(this.gain);
-      this.gain.toDestination();
-      if (autoPlay) {
-        this.player.loop = true;
-        this.player.start();
-      }
-    }).catch((err) => console.error("Failed to load audio", err));
-  }
-  play({ playbackRate = 1, gain = 0.1 } = {}) {
-    try {
-      this.player.playbackRate = playbackRate;
-      this.gain.set({ gain });
-      this.player.start();
-    } catch (err) {
-      console.warn("Failed to play sound", this.url, err);
-    }
-  }
-};
-function useSound(definition) {
-  const store = useSoundStore();
-  const sources = Object.keys(definition);
-  const soundById = useMemo4(
-    () => Object.entries(definition).map(([id, url]) => {
-      const sound = new Sound(url);
-      return { id, sound };
-    }).reduce((prev, { id, sound }) => ({
-      ...prev,
-      [id]: sound
-    }), {}),
-    [...sources]
-  );
-  const sounds = useMemo4(() => Object.entries(soundById).map(([_, s]) => s), [soundById]);
-  useEffect4(
-    () => {
-      return () => {
-        sounds.forEach((sound) => {
-          sound.player.stop();
-          sound.player.dispose();
-        });
-      };
-    },
-    [soundById]
-  );
-  useEffect4(
-    () => {
-      sounds.forEach((sound) => {
-        sound.gain.set({ gain: store.volume });
-      });
-    },
-    [store.volume]
-  );
-  const play = useCallback2(
-    (soundId, params) => {
-      const gain = params?.gain ?? 1;
-      const opts = { ...params, gain: gain * store.get().volume };
-      soundById[soundId].play(opts);
-    },
-    [soundById]
-  );
-  return {
-    play,
-    sounds: soundById
-  };
-}
-
 // src/GameContext.tsx
 var GameContext = React23.createContext({ game: { id: "unknown", app: null } });
 function Game({ game, children, errorFallback }) {
@@ -1870,6 +1871,8 @@ export {
   usePool,
   useReferral,
   useSendTransaction,
+  useSound,
+  useSoundStore,
   useTokenList,
   useTokenMeta,
   useTransactionError,
@@ -1878,6 +1881,7 @@ export {
   useWagerInput2 as useWagerInput,
   useWalletAddress,
   useWhisky,
+  useWhiskyAudioStore,
   useWhiskyContext,
   useWhiskyEventListener,
   useWhiskyEvents,

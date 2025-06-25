@@ -5,6 +5,7 @@ import * as _whisky_gaming_core from '@whisky-gaming/core';
 import { WhiskyProvider as WhiskyProvider$1, WhiskyEventType, WhiskyTransaction } from '@whisky-gaming/core';
 export { AnyWhiskyEvent, BPS_PER_WHOLE, WhiskyEventType, WhiskyTransaction } from '@whisky-gaming/core';
 import * as zustand from 'zustand';
+import { StoreApi } from 'zustand';
 import * as _coral_xyz_anchor from '@coral-xyz/anchor';
 import { Player, Gain } from 'tone';
 
@@ -327,6 +328,16 @@ interface PlaySoundParams {
     playbackRate?: number;
     gain?: number;
 }
+interface SoundStore {
+    volume: number;
+    set: (gain: number) => void;
+    get: StoreApi<SoundStore>['getState'];
+    /** @deprecated Use "volume" */
+    masterGain: number;
+}
+declare const useSoundStore: zustand.UseBoundStore<StoreApi<SoundStore>>;
+/** @deprecated use "useSoundStore" */
+declare const useWhiskyAudioStore: zustand.UseBoundStore<StoreApi<SoundStore>>;
 declare class Sound {
     player: Player;
     gain: Gain<"gain">;
@@ -519,4 +530,4 @@ declare const WhiskyStandardTokens: {
     };
 };
 
-export { CanvasContext, CanvasProps, EffectTest, FAKE_TOKEN_MINT, GameBundle, GameContext, PartialTokenMetaWithMint, PlayButton, PoolToken, ReferralContext, ReferralProvider, ReferralProviderProps, SendTransactionContext, SendTransactionOptions, SendTransactionProps, SendTransactionProvider, TokenMeta, TokenMetaContext, TokenMetaFetcher, TokenMetaList, TokenMetaProps, TokenMetaProvider, TokenValue, TokenValueProps, UiPoolState, UseWhiskyEventsParams, WhiskyCanvas, WhiskyContext, WhiskyPlatformContext, WhiskyPlatformProvider, WhiskyPlayInput, WhiskyPlugin, WhiskyPluginContext, WhiskyPluginInput, WhiskyProvider, WhiskyProviderProps, WhiskyStandardTokens, WhiskyUi, makeHeliusTokenFetcher, throwTransactionError, useAccount, useBalance, useCurrentPool, useCurrentToken, useFees, useGame, useNextResult, usePool, useReferral, useSendTransaction, useTokenList, useTokenMeta, useTransactionError, useTransactionStore, useUserBalance, useWagerInput, useWalletAddress, useWhisky, useWhiskyContext, useWhiskyEventListener, useWhiskyEvents, useWhiskyPlatformContext, useWhiskyPlay, useWhiskyProgram, useWhiskyProvider };
+export { CanvasContext, CanvasProps, EffectTest, FAKE_TOKEN_MINT, GameBundle, GameContext, PartialTokenMetaWithMint, PlayButton, PoolToken, ReferralContext, ReferralProvider, ReferralProviderProps, SendTransactionContext, SendTransactionOptions, SendTransactionProps, SendTransactionProvider, SoundStore, TokenMeta, TokenMetaContext, TokenMetaFetcher, TokenMetaList, TokenMetaProps, TokenMetaProvider, TokenValue, TokenValueProps, UiPoolState, UseWhiskyEventsParams, WhiskyCanvas, WhiskyContext, WhiskyPlatformContext, WhiskyPlatformProvider, WhiskyPlayInput, WhiskyPlugin, WhiskyPluginContext, WhiskyPluginInput, WhiskyProvider, WhiskyProviderProps, WhiskyStandardTokens, WhiskyUi, makeHeliusTokenFetcher, throwTransactionError, useAccount, useBalance, useCurrentPool, useCurrentToken, useFees, useGame, useNextResult, usePool, useReferral, useSendTransaction, useSound, useSoundStore, useTokenList, useTokenMeta, useTransactionError, useTransactionStore, useUserBalance, useWagerInput, useWalletAddress, useWhisky, useWhiskyAudioStore, useWhiskyContext, useWhiskyEventListener, useWhiskyEvents, useWhiskyPlatformContext, useWhiskyPlay, useWhiskyProgram, useWhiskyProvider };
