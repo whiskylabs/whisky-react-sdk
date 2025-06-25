@@ -20,6 +20,7 @@ export * from './useWhiskyEvents'
 export { useTokenMeta } from './useTokenMeta'
 export { useWagerInput } from './useWagerInput'
 export * from './useSound'
+export * from './useGame'
 
 // Legacy hooks for compatibility
 export function useWhiskyPlatformContext() {

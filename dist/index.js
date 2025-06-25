@@ -30,7 +30,7 @@ var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: tru
 // src/index.ts
 var src_exports = {};
 __export(src_exports, {
-  BPS_PER_WHOLE: () => import_core8.BPS_PER_WHOLE,
+  BPS_PER_WHOLE: () => import_core9.BPS_PER_WHOLE,
   EffectTest: () => EffectTest,
   FAKE_TOKEN_MINT: () => FAKE_TOKEN_MINT,
   GameContext: () => GameContext,
@@ -81,13 +81,13 @@ __export(src_exports, {
   useWhiskyProvider: () => useWhiskyProvider
 });
 module.exports = __toCommonJS(src_exports);
-var import_react31 = __toESM(require("react"));
-var import_web312 = require("@solana/web3.js");
+var import_react33 = __toESM(require("react"));
+var import_web313 = require("@solana/web3.js");
 
 // src/WhiskyPlatformProvider.tsx
-var import_web310 = require("@solana/web3.js");
-var import_core7 = require("@whisky-gaming/core");
-var import_react14 = __toESM(require("react"));
+var import_web311 = require("@solana/web3.js");
+var import_core8 = require("@whisky-gaming/core");
+var import_react30 = __toESM(require("react"));
 
 // src/PortalContext.tsx
 var import_react = __toESM(require("react"));
@@ -122,8 +122,8 @@ function PortalTarget(props) {
 
 // src/referral/ReferralContext.tsx
 var import_wallet_adapter_react8 = require("@solana/wallet-adapter-react");
-var import_web39 = require("@solana/web3.js");
-var import_react13 = __toESM(require("react"));
+var import_web310 = require("@solana/web3.js");
+var import_react29 = __toESM(require("react"));
 
 // src/WhiskyProvider.tsx
 var import_wallet_adapter_react = require("@solana/wallet-adapter-react");
@@ -179,7 +179,7 @@ function WhiskyProvider({ plugins: _plugins = [], children }) {
 }
 
 // src/hooks/index.ts
-var import_react12 = __toESM(require("react"));
+var import_react28 = __toESM(require("react"));
 
 // src/hooks/useTokenMeta.tsx
 var import_signals_react = require("@preact/signals-react");
@@ -751,352 +751,26 @@ function useSound(definition) {
   };
 }
 
-// src/hooks/index.ts
-function useWhiskyPlatformContext() {
-  return import_react12.default.useContext(WhiskyPlatformContext);
-}
-function useCurrentPool() {
-  const context = import_react12.default.useContext(WhiskyPlatformContext);
-  return context.selectedPool;
-}
-function useCurrentToken() {
-  const { token } = import_react12.default.useContext(WhiskyPlatformContext).selectedPool;
-  return useTokenMeta(token);
-}
-function useFees() {
-  const context = import_react12.default.useContext(WhiskyPlatformContext);
-  const pool = useCurrentPool();
-  const creatorFee = context.defaultCreatorFee;
-  const jackpotFee = context.defaultJackpotFee;
-  const poolData = usePool(pool.token, pool.authority);
-  return creatorFee + jackpotFee + poolData.whiskyFee + poolData.poolFee;
-}
-function useUserBalance(mint) {
-  const pool = useCurrentPool();
-  const token = useCurrentToken();
-  const userAddress = useWalletAddress();
-  const realBalance = useBalance(userAddress, mint ?? token.mint, pool.authority);
-  return realBalance;
-}
-function useWhiskyProvider() {
-  return useWhiskyContext().provider;
-}
-function useWhiskyProgram() {
-  const provider = useWhiskyProvider();
-  return provider?.whiskyProgram;
-}
-
-// src/referral/program.ts
-var import_anchor = require("@coral-xyz/anchor");
+// src/hooks/useGame.ts
 var import_web36 = require("@solana/web3.js");
+var import_react27 = __toESM(require("react"));
 
-// src/referral/idl.ts
-var REFERRAL_IDL = { version: "0.1.0", name: "refer_program", instructions: [{ name: "configReferAccount", accounts: [{ name: "authority", isMut: true, isSigner: true }, { name: "referAccount", isMut: true, isSigner: false }, { name: "creator", isMut: false, isSigner: false }, { name: "systemProgram", isMut: false, isSigner: false }], args: [{ name: "referrer", type: "publicKey" }] }, { name: "closeReferAccount", accounts: [{ name: "authority", isMut: true, isSigner: true }, { name: "referAccount", isMut: true, isSigner: false }, { name: "creator", isMut: false, isSigner: false }, { name: "systemProgram", isMut: false, isSigner: false }], args: [] }], accounts: [{ name: "referAccount", type: { kind: "struct", fields: [{ name: "referrer", type: "publicKey" }] } }] };
-
-// src/referral/program.ts
-var PROGRAM_ID2 = new import_web36.PublicKey("RefwFk2PPNd9bPehSyAkrkrehSHkvz6mTAHTNe8v9vH");
-var getReferrerPda = (creator, authority) => import_web36.PublicKey.findProgramAddressSync([
-  creator.toBytes(),
-  authority.toBytes()
-], PROGRAM_ID2)[0];
-var createReferral = async (provider, creator, referAccount) => {
-  const referralProgram = new import_anchor.Program(REFERRAL_IDL, PROGRAM_ID2, provider);
-  return referralProgram.methods.configReferAccount(referAccount).accounts({ referAccount: getReferrerPda(creator, provider.wallet.publicKey), creator }).instruction();
-};
-var closeReferral = async (provider, creator) => {
-  const referralProgram = new import_anchor.Program(REFERRAL_IDL, PROGRAM_ID2, provider);
-  return referralProgram.methods.closeReferAccount().accounts({ referAccount: getReferrerPda(creator, provider.wallet.publicKey), creator }).instruction();
-};
-var fetchReferral = async (provider, pda) => {
-  const referralProgram = new import_anchor.Program(REFERRAL_IDL, PROGRAM_ID2, provider);
-  const account = await referralProgram.account.referAccount.fetch(pda);
-  if (!account)
-    return null;
-  return account.referrer;
-};
-
-// src/referral/referralPlugin.ts
-var SplToken = __toESM(require("@solana/spl-token"));
-var import_web37 = require("@solana/web3.js");
-var makeReferralPlugin = (recipient, upsert, referralFee = 0.01, creatorFeeDeduction = 1) => async (input, context) => {
-  const instructions = [];
-  const tokenAmount = BigInt(Math.floor(input.wager * referralFee));
-  if (upsert) {
-    instructions.push(
-      await createReferral(context.provider.anchorProvider, input.creator, recipient)
-    );
-  }
-  if (input.token.equals(SplToken.NATIVE_MINT)) {
-    instructions.push(
-      import_web37.SystemProgram.transfer({
-        fromPubkey: input.wallet,
-        toPubkey: recipient,
-        lamports: tokenAmount
-      })
-    );
-  } else {
-    const fromAta = SplToken.getAssociatedTokenAddressSync(input.token, input.wallet);
-    const toAta = SplToken.getAssociatedTokenAddressSync(input.token, recipient);
-    const recipientHasAta = await (async () => {
-      try {
-        await SplToken.getAccount(context.provider.anchorProvider.connection, toAta, "confirmed");
-        return true;
-      } catch (error) {
-        if (error instanceof SplToken.TokenAccountNotFoundError || error instanceof SplToken.TokenInvalidAccountOwnerError) {
-          return false;
-        } else {
-          throw error;
-        }
-      }
-    })();
-    if (!recipientHasAta) {
-      instructions.push(
-        SplToken.createAssociatedTokenAccountInstruction(
-          input.wallet,
-          toAta,
-          recipient,
-          input.token
-        )
-      );
-    }
-    instructions.push(
-      SplToken.createTransferInstruction(
-        fromAta,
-        toAta,
-        input.wallet,
-        tokenAmount
-      )
-    );
-  }
-  context.creatorFee = Math.max(0, context.creatorFee - referralFee * creatorFeeDeduction);
-  return instructions;
-};
-
-// src/referral/referralUtils.ts
-var import_web38 = require("@solana/web3.js");
-function getReferralLink(prefix, address) {
-  return location.protocol + "//" + location.host + "?" + prefix + "=" + address.toString();
-}
-function getReferralAddressFromUrl(prefix) {
-  const params = new URLSearchParams(location.search);
-  const referralAddressString = params.get(prefix);
-  if (!referralAddressString)
-    return null;
-  try {
-    return new import_web38.PublicKey(referralAddressString);
-  } catch (err) {
-    console.error("Failed to parse code");
-    return null;
-  }
-}
-
-// src/referral/ReferralContext.tsx
-var defaultPrefix = "code";
-function useWhiskyContext2() {
-  const { provider } = useWhisky();
-  return {
-    provider,
-    addPlugin: (plugin) => {
-      console.warn("addPlugin not implemented yet");
-      return () => {
-      };
-    }
-  };
-}
-function useWalletAddress2() {
-  const { publicKey } = (0, import_wallet_adapter_react8.useWallet)();
-  return publicKey;
-}
-var ReferralContext = (0, import_react13.createContext)({
-  referrerAddress: null,
-  isOnChain: false,
-  prefix: defaultPrefix,
-  referralStatus: "local",
-  clearCache: () => null,
-  setCache: () => null
-});
-function ReferralProvider({
-  fee,
-  prefix = defaultPrefix,
-  children,
-  storage = localStorage,
-  autoAccept = true
-}) {
-  const wallet = (0, import_wallet_adapter_react8.useWallet)();
-  const owner = useWalletAddress2();
-  const whiskyContext = useWhiskyContext2();
-  const whiskyPlatformContext = useWhiskyPlatformContext();
-  const [isFetchingOnChain, setIsFetchingOnChain] = (0, import_react13.useState)(false);
-  const [referralCache, setReferralCache] = (0, import_react13.useState)({ address: null, isOnChain: false });
-  const getOnChainAddress = async () => {
-    try {
-      if (!owner || !whiskyContext.provider?.anchorProvider)
-        return null;
-      const pda = getReferrerPda(whiskyPlatformContext.platform.creator, owner);
-      const address = await fetchReferral(whiskyContext.provider.anchorProvider, pda);
-      return address;
-    } catch {
-      return null;
-    }
-  };
-  const getPublicKeyFromStorage = (key) => {
-    try {
-      const value = storage.getItem(key);
-      if (value)
-        return new import_web39.PublicKey(value);
-    } catch {
-      return;
-    }
-  };
-  (0, import_react13.useEffect)(() => {
-    let isCancelled = false;
-    const handleReferral = async () => {
-      const urlAddress = getReferralAddressFromUrl(prefix);
-      if (autoAccept && urlAddress) {
-        storage.setItem("referral-new", urlAddress.toString());
-        const url = new URL(window.location.href);
-        const params = url.searchParams;
-        params.delete(prefix);
-        const newUrl = url.origin + url.pathname + (params.toString() ? "?" + params.toString() : "");
-        window.history.replaceState({}, document.title, newUrl);
-        return;
-      }
-      if (!wallet.publicKey) {
-        setReferralCache({ address: null, isOnChain: false });
-        return;
-      }
-      setIsFetchingOnChain(true);
-      try {
-        const onChainAddress = await getOnChainAddress();
-        if (isCancelled)
-          return;
-        if (!onChainAddress)
-          throw new Error();
-        setReferralCache({ address: onChainAddress, isOnChain: true });
-      } catch {
-        if (isCancelled)
-          return;
-        const storedReferralForAddress = getPublicKeyFromStorage("referral-" + wallet.publicKey.toString());
-        if (storedReferralForAddress) {
-          setReferralCache({ address: storedReferralForAddress, isOnChain: false });
-          return;
-        }
-        const newReferral = getPublicKeyFromStorage("referral-new");
-        if (newReferral && !newReferral.equals(wallet.publicKey)) {
-          setReferralCache({ address: newReferral, isOnChain: false });
-          storage.setItem("referral-" + wallet.publicKey.toString(), newReferral.toString());
-          storage.removeItem("referral-new");
-        }
-      } finally {
-        if (!isCancelled)
-          setIsFetchingOnChain(false);
-      }
-    };
-    handleReferral();
-    return () => {
-      isCancelled = true;
-    };
-  }, [
-    autoAccept,
-    whiskyPlatformContext.platform.creator.toString(),
-    wallet.publicKey?.toString(),
-    prefix
-  ]);
-  (0, import_react13.useEffect)(() => {
-    if (!referralCache.address)
-      return;
-    return whiskyContext.addPlugin(
-      makeReferralPlugin(
-        referralCache.address,
-        !referralCache.isOnChain,
-        fee,
-        1
-      )
-    );
-  }, [fee, referralCache.address, referralCache.isOnChain]);
-  const clearCache = () => {
-    if (wallet.publicKey) {
-      storage.removeItem("referral-" + wallet.publicKey.toString());
-    }
-    storage.removeItem("referral-new");
-    setReferralCache({ address: null, isOnChain: false });
-  };
-  const setCache = (address, isOnChain = false) => {
-    if (wallet.publicKey) {
-      storage.setItem("referral-" + wallet.publicKey.toString(), address.toString());
-    }
-    storage.setItem("referral-new", address.toString());
-    setReferralCache({ address, isOnChain });
-  };
-  return /* @__PURE__ */ import_react13.default.createElement(ReferralContext.Provider, { value: {
-    prefix,
-    isOnChain: referralCache.isOnChain,
-    referrerAddress: referralCache.address,
-    referralStatus: isFetchingOnChain ? "fetching" : referralCache.isOnChain ? "on-chain" : "local",
-    clearCache,
-    setCache
-  } }, children);
-}
-
-// src/WhiskyPlatformProvider.tsx
-var WhiskyPlatformContext = import_react14.default.createContext(null);
-function WhiskyPlatformProvider(props) {
-  const {
-    creator,
-    children,
-    referral = { prefix: "code", fee: 0.01, autoAccept: true }
-  } = props;
-  const [selectedPool, setSelectedPool] = import_react14.default.useState(props.defaultPool ?? { token: import_core7.NATIVE_MINT });
-  const [clientSeed, setClientSeed] = import_react14.default.useState(String(Math.random() * 1e9 | 0));
-  const [defaultJackpotFee, setDefaultJackpotFee] = import_react14.default.useState(props.defaultJackpotFee ?? 1e-3);
-  const defaultCreatorFee = props.defaultCreatorFee ?? 0.01;
-  const setPool = (tokenMint, authority = new import_web310.PublicKey("11111111111111111111111111111111")) => {
-    setSelectedPool({
-      token: new import_web310.PublicKey(tokenMint),
-      authority: new import_web310.PublicKey(authority)
-    });
-  };
-  const setToken = (tokenMint) => {
-    setPool(tokenMint);
-  };
-  return /* @__PURE__ */ import_react14.default.createElement(
-    WhiskyPlatformContext.Provider,
-    {
-      value: {
-        platform: {
-          name: "",
-          creator: new import_web310.PublicKey(creator)
-        },
-        selectedPool,
-        setToken,
-        setPool,
-        clientSeed,
-        setClientSeed,
-        defaultJackpotFee,
-        setDefaultJackpotFee,
-        defaultCreatorFee
-      }
-    },
-    /* @__PURE__ */ import_react14.default.createElement(ReferralProvider, { ...referral }, /* @__PURE__ */ import_react14.default.createElement(PortalProvider, null, children))
-  );
-}
-
-// src/index.ts
-var import_core8 = require("@whisky-gaming/core");
+// src/GameContext.tsx
+var import_react25 = __toESM(require("react"));
 
 // src/EffectTest.tsx
-var import_react16 = __toESM(require("react"));
+var import_react13 = __toESM(require("react"));
 
 // src/hooks/useAnimationFrame.ts
-var import_react15 = require("react");
+var import_react12 = require("react");
 var useAnimationFrame_default = (cb) => {
   if (typeof performance === "undefined" || typeof window === "undefined") {
     return;
   }
-  const cbRef = (0, import_react15.useRef)(null);
-  const frame = (0, import_react15.useRef)();
-  const init = (0, import_react15.useRef)(performance.now());
-  const last = (0, import_react15.useRef)(performance.now());
+  const cbRef = (0, import_react12.useRef)(null);
+  const frame = (0, import_react12.useRef)();
+  const init = (0, import_react12.useRef)(performance.now());
+  const last = (0, import_react12.useRef)(performance.now());
   cbRef.current = cb;
   const animate = (now) => {
     cbRef.current({
@@ -1106,7 +780,7 @@ var useAnimationFrame_default = (cb) => {
     last.current = now;
     frame.current = requestAnimationFrame(animate);
   };
-  (0, import_react15.useLayoutEffect)(() => {
+  (0, import_react12.useLayoutEffect)(() => {
     frame.current = requestAnimationFrame(animate);
     return () => {
       frame.current && cancelAnimationFrame(frame.current);
@@ -1116,11 +790,11 @@ var useAnimationFrame_default = (cb) => {
 
 // src/EffectTest.tsx
 function EffectTest({ src }) {
-  const parts = import_react16.default.useRef(Array.from({ length: 25 }).map(() => ({
+  const parts = import_react13.default.useRef(Array.from({ length: 25 }).map(() => ({
     x: Math.random(),
     y: -Math.random() * 600
   })));
-  const image = import_react16.default.useMemo(
+  const image = import_react13.default.useMemo(
     () => {
       const image2 = document.createElement("img");
       image2.src = src;
@@ -1138,7 +812,7 @@ function EffectTest({ src }) {
       );
     }
   );
-  return /* @__PURE__ */ import_react16.default.createElement(
+  return /* @__PURE__ */ import_react13.default.createElement(
     WhiskyUi.Canvas,
     {
       zIndex: 99,
@@ -1168,8 +842,8 @@ function EffectTest({ src }) {
 }
 
 // src/ErrorBoundary.tsx
-var import_react17 = __toESM(require("react"));
-var ErrorBoundary = class extends import_react17.default.Component {
+var import_react14 = __toESM(require("react"));
+var ErrorBoundary = class extends import_react14.default.Component {
   constructor() {
     super(...arguments);
     this.state = { hasError: false, error: null };
@@ -1191,11 +865,8 @@ var ErrorBoundary = class extends import_react17.default.Component {
   }
 };
 
-// src/GameContext.tsx
-var import_react28 = __toESM(require("react"));
-
 // src/components/Button.tsx
-var import_react18 = __toESM(require("react"));
+var import_react15 = __toESM(require("react"));
 var import_styled_components = __toESM(require("styled-components"));
 var StyledButton = import_styled_components.default.button`
   --color: var(--whisky-ui-button-default-color);
@@ -1232,7 +903,7 @@ var StyledButton = import_styled_components.default.button`
   }
 `;
 function Button(props) {
-  return /* @__PURE__ */ import_react18.default.createElement(
+  return /* @__PURE__ */ import_react15.default.createElement(
     StyledButton,
     {
       disabled: props.disabled,
@@ -1245,12 +916,12 @@ function Button(props) {
 }
 
 // src/components/Canvas.tsx
-var import_react19 = __toESM(require("react"));
-var WhiskyCanvas = import_react19.default.forwardRef(function Canvas(props, forwardRef) {
+var import_react16 = __toESM(require("react"));
+var WhiskyCanvas = import_react16.default.forwardRef(function Canvas(props, forwardRef) {
   const { render, zIndex = 0, style, ...rest } = props;
-  const wrapper = import_react19.default.useRef(null);
-  const canvas = import_react19.default.useRef(null);
-  import_react19.default.useImperativeHandle(forwardRef, () => canvas.current);
+  const wrapper = import_react16.default.useRef(null);
+  const canvas = import_react16.default.useRef(null);
+  import_react16.default.useImperativeHandle(forwardRef, () => canvas.current);
   useAnimationFrame_default(
     (time) => {
       const ctx = canvas.current.getContext("2d");
@@ -1270,7 +941,7 @@ var WhiskyCanvas = import_react19.default.forwardRef(function Canvas(props, forw
       ctx.restore();
     }
   );
-  import_react19.default.useLayoutEffect(() => {
+  import_react16.default.useLayoutEffect(() => {
     let timeout;
     const resize = () => {
       canvas.current.width = wrapper.current.clientWidth * window.devicePixelRatio;
@@ -1291,11 +962,11 @@ var WhiskyCanvas = import_react19.default.forwardRef(function Canvas(props, forw
       clearTimeout(timeout);
     };
   }, []);
-  return /* @__PURE__ */ import_react19.default.createElement("div", { ref: wrapper, style: { position: "absolute", left: 0, top: 0, width: "100%", height: "100%", zIndex } }, /* @__PURE__ */ import_react19.default.createElement("canvas", { ...rest, style: { width: "100%", height: "100%", ...style }, ref: canvas }));
+  return /* @__PURE__ */ import_react16.default.createElement("div", { ref: wrapper, style: { position: "absolute", left: 0, top: 0, width: "100%", height: "100%", zIndex } }, /* @__PURE__ */ import_react16.default.createElement("canvas", { ...rest, style: { width: "100%", height: "100%", ...style }, ref: canvas }));
 });
 
 // src/components/ResponsiveSize.tsx
-var import_react20 = __toESM(require("react"));
+var import_react17 = __toESM(require("react"));
 var import_styled_components2 = __toESM(require("styled-components"));
 var Responsive = import_styled_components2.default.div`
   justify-content: center;
@@ -1309,10 +980,10 @@ var Responsive = import_styled_components2.default.div`
   top: 0;
 `;
 function ResponsiveSize({ children, maxScale = 1, overlay, ...props }) {
-  const wrapper = import_react20.default.useRef(null);
-  const inner = import_react20.default.useRef(null);
-  const content = import_react20.default.useRef(null);
-  import_react20.default.useLayoutEffect(() => {
+  const wrapper = import_react17.default.useRef(null);
+  const inner = import_react17.default.useRef(null);
+  const content = import_react17.default.useRef(null);
+  import_react17.default.useLayoutEffect(() => {
     let timeout;
     const resize = () => {
       const ww = wrapper.current.clientWidth / (content.current.scrollWidth + 40);
@@ -1335,11 +1006,11 @@ function ResponsiveSize({ children, maxScale = 1, overlay, ...props }) {
       clearTimeout(timeout);
     };
   }, [maxScale]);
-  return /* @__PURE__ */ import_react20.default.createElement(Responsive, { ...props, ref: wrapper }, /* @__PURE__ */ import_react20.default.createElement("div", { ref: inner }, /* @__PURE__ */ import_react20.default.createElement("div", { ref: content }, children)));
+  return /* @__PURE__ */ import_react17.default.createElement(Responsive, { ...props, ref: wrapper }, /* @__PURE__ */ import_react17.default.createElement("div", { ref: inner }, /* @__PURE__ */ import_react17.default.createElement("div", { ref: content }, children)));
 }
 
 // src/components/Select.tsx
-var import_react21 = __toESM(require("react"));
+var import_react18 = __toESM(require("react"));
 var import_styled_components3 = __toESM(require("styled-components"));
 var StyledWrapper = import_styled_components3.default.div`
   position: relative;
@@ -1373,16 +1044,16 @@ var StyledPopup = import_styled_components3.default.div`
   }
 `;
 function Select(props) {
-  const [open, setOpen] = import_react21.default.useState(false);
+  const [open, setOpen] = import_react18.default.useState(false);
   const set = (val) => {
     setOpen(false);
     props.onChange(val);
   };
-  return /* @__PURE__ */ import_react21.default.createElement(StyledWrapper, { className: props.className }, /* @__PURE__ */ import_react21.default.createElement(Button, { disabled: props.disabled, onClick: () => setOpen(!open) }, props.label ? props.label(props.value) : JSON.stringify(props.value)), open && /* @__PURE__ */ import_react21.default.createElement(StyledPopup, null, props.options.map((val, i) => /* @__PURE__ */ import_react21.default.createElement("button", { key: i, onClick: () => set(val) }, props.label ? props.label(val) : JSON.stringify(val)))));
+  return /* @__PURE__ */ import_react18.default.createElement(StyledWrapper, { className: props.className }, /* @__PURE__ */ import_react18.default.createElement(Button, { disabled: props.disabled, onClick: () => setOpen(!open) }, props.label ? props.label(props.value) : JSON.stringify(props.value)), open && /* @__PURE__ */ import_react18.default.createElement(StyledPopup, null, props.options.map((val, i) => /* @__PURE__ */ import_react18.default.createElement("button", { key: i, onClick: () => set(val) }, props.label ? props.label(val) : JSON.stringify(val)))));
 }
 
 // src/components/Switch.tsx
-var import_react22 = __toESM(require("react"));
+var import_react19 = __toESM(require("react"));
 var import_styled_components4 = __toESM(require("styled-components"));
 var SwitchButton = import_styled_components4.default.input`
   all: unset;
@@ -1418,7 +1089,7 @@ var SwitchButton = import_styled_components4.default.input`
   }
 `;
 function Switch(props) {
-  return /* @__PURE__ */ import_react22.default.createElement(
+  return /* @__PURE__ */ import_react19.default.createElement(
     SwitchButton,
     {
       type: "checkbox",
@@ -1431,7 +1102,7 @@ function Switch(props) {
 }
 
 // src/components/TextInput.tsx
-var import_react23 = __toESM(require("react"));
+var import_react20 = __toESM(require("react"));
 var import_styled_components5 = __toESM(require("styled-components"));
 var StyledTextInput = import_styled_components5.default.input`
   color: var(--whisky-ui-input-color);
@@ -1453,7 +1124,7 @@ var StyledTextInput = import_styled_components5.default.input`
   }
 `;
 function TextInput({ onChange, ...props }) {
-  return /* @__PURE__ */ import_react23.default.createElement(
+  return /* @__PURE__ */ import_react20.default.createElement(
     StyledTextInput,
     {
       type: "text",
@@ -1465,13 +1136,13 @@ function TextInput({ onChange, ...props }) {
 }
 
 // src/components/WagerInput.tsx
-var import_react26 = __toESM(require("react"));
+var import_react23 = __toESM(require("react"));
 var import_styled_components6 = __toESM(require("styled-components"));
 
 // src/components/TokenValue.tsx
-var import_react24 = __toESM(require("react"));
+var import_react21 = __toESM(require("react"));
 function TokenValue(props) {
-  const context = import_react24.default.useContext(WhiskyPlatformContext);
+  const context = import_react21.default.useContext(WhiskyPlatformContext);
   const mint = props.mint ?? context?.selectedPool.token;
   if (!mint) {
     throw new Error('"mint" prop is required when not using WhiskyPlatformProvider');
@@ -1493,13 +1164,13 @@ function TokenValue(props) {
     }
     return tokenAmount.toLocaleString(void 0, { maximumFractionDigits: Math.floor(tokenAmount) > 100 ? 1 : 4 });
   })();
-  return /* @__PURE__ */ import_react24.default.createElement(import_react24.default.Fragment, null, displayedAmount, " ", suffix);
+  return /* @__PURE__ */ import_react21.default.createElement(import_react21.default.Fragment, null, displayedAmount, " ", suffix);
 }
 
 // src/hooks/useOnClickOutside.ts
-var import_react25 = __toESM(require("react"));
+var import_react22 = __toESM(require("react"));
 function useOnClickOutside(ref, handler) {
-  import_react25.default.useEffect(() => {
+  import_react22.default.useEffect(() => {
     const listener = (event) => {
       if (!ref.current || ref.current.contains(event.target)) {
         return;
@@ -1622,12 +1293,12 @@ var WagerAmount = import_styled_components6.default.div`
 function WagerInput(props) {
   const whisky = useWhisky();
   const token = useCurrentToken();
-  const [input, setInput] = import_react26.default.useState("");
+  const [input, setInput] = import_react23.default.useState("");
   const balance = useUserBalance();
   const fees = useFees();
-  const [isEditing, setIsEditing] = import_react26.default.useState(false);
-  const ref = (0, import_react26.useRef)(null);
-  import_react26.default.useEffect(
+  const [isEditing, setIsEditing] = import_react23.default.useState(false);
+  const ref = (0, import_react23.useRef)(null);
+  import_react23.default.useEffect(
     () => {
       props.onChange(token.baseWager);
     },
@@ -1651,13 +1322,13 @@ function WagerInput(props) {
     const nextValue = Math.max(token.baseWager, props.value * 2 || token.baseWager);
     props.onChange(Math.max(0, Math.min(nextValue, availableBalance - nextValue * fees)));
   };
-  return /* @__PURE__ */ import_react26.default.createElement("div", { ref, className: props.className, style: { position: "relative" } }, /* @__PURE__ */ import_react26.default.createElement(StyledWagerInput, { $edit: isEditing }, /* @__PURE__ */ import_react26.default.createElement(Flex, { onClick: () => !whisky.isPlaying && startEditInput() }, /* @__PURE__ */ import_react26.default.createElement(TokenImage, { src: token.image }), !isEditing || props.options ? /* @__PURE__ */ import_react26.default.createElement(
+  return /* @__PURE__ */ import_react23.default.createElement("div", { ref, className: props.className, style: { position: "relative" } }, /* @__PURE__ */ import_react23.default.createElement(StyledWagerInput, { $edit: isEditing }, /* @__PURE__ */ import_react23.default.createElement(Flex, { onClick: () => !whisky.isPlaying && startEditInput() }, /* @__PURE__ */ import_react23.default.createElement(TokenImage, { src: token.image }), !isEditing || props.options ? /* @__PURE__ */ import_react23.default.createElement(
     WagerAmount,
     {
       title: (props.value / 10 ** token.decimals).toLocaleString()
     },
-    /* @__PURE__ */ import_react26.default.createElement(TokenValue, { suffix: "", amount: props.value, mint: token.mint })
-  ) : /* @__PURE__ */ import_react26.default.createElement(
+    /* @__PURE__ */ import_react23.default.createElement(TokenValue, { suffix: "", amount: props.value, mint: token.mint })
+  ) : /* @__PURE__ */ import_react23.default.createElement(
     Input,
     {
       value: input,
@@ -1673,17 +1344,17 @@ function WagerInput(props) {
       autoFocus: true,
       onFocus: (e) => e.target.select()
     }
-  )), !props.options && /* @__PURE__ */ import_react26.default.createElement(Buttons, null, /* @__PURE__ */ import_react26.default.createElement(InputButton, { disabled: whisky.isPlaying, onClick: () => props.onChange(props.value / 2) }, "x.5"), /* @__PURE__ */ import_react26.default.createElement(InputButton, { disabled: whisky.isPlaying, onClick: x2 }, "x2"))), props.options && isEditing && /* @__PURE__ */ import_react26.default.createElement(StyledPopup2, null, props.options.map((option, i) => /* @__PURE__ */ import_react26.default.createElement("button", { key: i, onClick: () => {
+  )), !props.options && /* @__PURE__ */ import_react23.default.createElement(Buttons, null, /* @__PURE__ */ import_react23.default.createElement(InputButton, { disabled: whisky.isPlaying, onClick: () => props.onChange(props.value / 2) }, "x.5"), /* @__PURE__ */ import_react23.default.createElement(InputButton, { disabled: whisky.isPlaying, onClick: x2 }, "x2"))), props.options && isEditing && /* @__PURE__ */ import_react23.default.createElement(StyledPopup2, null, props.options.map((option, i) => /* @__PURE__ */ import_react23.default.createElement("button", { key: i, onClick: () => {
     props.onChange(option);
     setIsEditing(false);
-  } }, /* @__PURE__ */ import_react26.default.createElement(TokenValue, { amount: option })))));
+  } }, /* @__PURE__ */ import_react23.default.createElement(TokenValue, { amount: option })))));
 }
 
 // src/components/WagerSelect.tsx
-var import_react27 = __toESM(require("react"));
+var import_react24 = __toESM(require("react"));
 function WagerSelect(props) {
   const whisky = useWhisky();
-  return /* @__PURE__ */ import_react27.default.createElement(
+  return /* @__PURE__ */ import_react24.default.createElement(
     Select,
     {
       className: props.className,
@@ -1691,19 +1362,19 @@ function WagerSelect(props) {
       value: props.value,
       onChange: props.onChange,
       disabled: whisky.isPlaying,
-      label: (value) => /* @__PURE__ */ import_react27.default.createElement(TokenValue, { amount: value })
+      label: (value) => /* @__PURE__ */ import_react24.default.createElement(TokenValue, { amount: value })
     }
   );
 }
 
 // src/GameContext.tsx
-var GameContext = import_react28.default.createContext({ game: { id: "unknown", app: null } });
+var GameContext = import_react25.default.createContext({ game: { id: "unknown", app: null } });
 function Game({ game, children, errorFallback }) {
-  return /* @__PURE__ */ import_react28.default.createElement(GameContext.Provider, { key: game.id, value: { game } }, /* @__PURE__ */ import_react28.default.createElement(ErrorBoundary, { fallback: errorFallback }, /* @__PURE__ */ import_react28.default.createElement(import_react28.default.Suspense, { fallback: /* @__PURE__ */ import_react28.default.createElement(import_react28.default.Fragment, null) }, /* @__PURE__ */ import_react28.default.createElement(game.app, { ...game.props }))), children);
+  return /* @__PURE__ */ import_react25.default.createElement(GameContext.Provider, { key: game.id, value: { game } }, /* @__PURE__ */ import_react25.default.createElement(ErrorBoundary, { fallback: errorFallback }, /* @__PURE__ */ import_react25.default.createElement(import_react25.default.Suspense, { fallback: /* @__PURE__ */ import_react25.default.createElement(import_react25.default.Fragment, null) }, /* @__PURE__ */ import_react25.default.createElement(game.app, { ...game.props }))), children);
 }
 function PlayButton(props) {
   const whisky = useWhisky();
-  return /* @__PURE__ */ import_react28.default.createElement(Portal, { target: "play" }, /* @__PURE__ */ import_react28.default.createElement(
+  return /* @__PURE__ */ import_react25.default.createElement(Portal, { target: "play" }, /* @__PURE__ */ import_react25.default.createElement(
     Button,
     {
       disabled: whisky.isPlaying || props.disabled,
@@ -1734,20 +1405,480 @@ var WhiskyUi = {
   TextInput
 };
 
+// src/hooks/useFakeToken.ts
+var import_react26 = __toESM(require("react"));
+var import_zustand3 = require("zustand");
+var import_core7 = require("@whisky-gaming/core");
+var betBuffer;
+var useFakeAccountStore = (0, import_zustand3.create)(
+  (set) => ({
+    balance: 1e12,
+    set
+  })
+);
+useNextFakeResult.delay = 500;
+function useNextFakeResult() {
+  const store = useFakeAccountStore();
+  const context = import_react26.default.useContext(WhiskyPlatformContext);
+  const user = useWalletAddress();
+  return async function getNextFakeResult() {
+    if (!betBuffer)
+      throw new Error("No game in progress");
+    await new Promise((resolve) => setTimeout(resolve, useNextFakeResult.delay));
+    const resultIndex = Math.random() * betBuffer.bet.length | 0;
+    const multiplier = betBuffer.bet[resultIndex];
+    const wager = betBuffer.wager;
+    const payout = multiplier * wager;
+    const profit = payout - wager;
+    store.set(
+      (state) => ({ balance: state.balance + payout })
+    );
+    return {
+      creator: context.platform.creator,
+      user,
+      rngSeed: "fake_rng_seed",
+      clientSeed: betBuffer.clientSeed ?? "",
+      nonce: 0,
+      bet: betBuffer.bet,
+      resultIndex,
+      wager,
+      payout,
+      profit,
+      multiplier,
+      token: context.selectedPool.token,
+      bonusUsed: 0,
+      jackpotWin: 0
+    };
+  };
+}
+function useFakeToken() {
+  const context = import_react26.default.useContext(WhiskyPlatformContext);
+  const balance = useFakeAccountStore();
+  const result = useNextFakeResult();
+  const isActive = context.selectedPool.token.equals(FAKE_TOKEN_MINT);
+  const play = (input) => {
+    if (balance.balance < input.wager) {
+      throw throwTransactionError(new Error("Insufficient funds"));
+    }
+    balance.set(({ balance: balance2 }) => ({ balance: balance2 - input.wager }));
+    betBuffer = input;
+    return "fake_game";
+  };
+  const pool = {
+    publicKey: (0, import_core7.getPoolAddress)(context.selectedPool.token),
+    authority: import_core7.SYSTEM_PROGRAM,
+    token: context.selectedPool.token,
+    minWager: 0,
+    whiskyFee: 0,
+    poolFee: 0,
+    jackpotBalance: 0,
+    liquidity: BigInt(1e99),
+    maxPayout: 1e99
+  };
+  return { isActive, balance, result, play, pool };
+}
+
+// src/hooks/useGame.ts
+function useGame() {
+  const gameContext = import_react27.default.useContext(GameContext);
+  const fake = useFakeToken();
+  const context = import_react27.default.useContext(WhiskyPlatformContext);
+  const balances = useUserBalance();
+  const getNextResult2 = useNextResult();
+  const whiskyPlay = useWhiskyPlay();
+  import_react27.default.useEffect(() => {
+    console.log("useGame - gameContext:", gameContext);
+    console.log("useGame - context:", context);
+    console.log("useGame - balances:", balances);
+  }, [gameContext, context, balances]);
+  const defaultGame = {
+    id: "default",
+    app: () => null,
+    meta: {},
+    props: {}
+  };
+  const game = gameContext?.game || defaultGame;
+  const result = async () => {
+    if (fake.isActive) {
+      return fake.result();
+    }
+    return getNextResult2();
+  };
+  const play = async (input, instructions = []) => {
+    const metaArgs = input.metadata ?? [];
+    const metadata = ["0", game.id, ...metaArgs];
+    const gameInput = {
+      ...input,
+      creator: new import_web36.PublicKey(context.platform.creator),
+      metadata,
+      clientSeed: context.clientSeed,
+      creatorFee: context.defaultCreatorFee,
+      jackpotFee: context.defaultJackpotFee,
+      token: context.selectedPool.token,
+      poolAuthority: context.selectedPool.authority
+    };
+    if (fake.isActive) {
+      return fake.play(gameInput);
+    }
+    return whiskyPlay(gameInput, instructions);
+  };
+  const returnValue = {
+    play,
+    game,
+    result
+  };
+  console.log("useGame returning:", returnValue);
+  console.log("play function:", typeof returnValue.play);
+  return returnValue;
+}
+
+// src/hooks/index.ts
+function useWhiskyPlatformContext() {
+  return import_react28.default.useContext(WhiskyPlatformContext);
+}
+function useCurrentPool() {
+  const context = import_react28.default.useContext(WhiskyPlatformContext);
+  return context.selectedPool;
+}
+function useCurrentToken() {
+  const { token } = import_react28.default.useContext(WhiskyPlatformContext).selectedPool;
+  return useTokenMeta(token);
+}
+function useFees() {
+  const context = import_react28.default.useContext(WhiskyPlatformContext);
+  const pool = useCurrentPool();
+  const creatorFee = context.defaultCreatorFee;
+  const jackpotFee = context.defaultJackpotFee;
+  const poolData = usePool(pool.token, pool.authority);
+  return creatorFee + jackpotFee + poolData.whiskyFee + poolData.poolFee;
+}
+function useUserBalance(mint) {
+  const pool = useCurrentPool();
+  const token = useCurrentToken();
+  const userAddress = useWalletAddress();
+  const realBalance = useBalance(userAddress, mint ?? token.mint, pool.authority);
+  return realBalance;
+}
+function useWhiskyProvider() {
+  return useWhiskyContext().provider;
+}
+function useWhiskyProgram() {
+  const provider = useWhiskyProvider();
+  return provider?.whiskyProgram;
+}
+
+// src/referral/program.ts
+var import_anchor = require("@coral-xyz/anchor");
+var import_web37 = require("@solana/web3.js");
+
+// src/referral/idl.ts
+var REFERRAL_IDL = { version: "0.1.0", name: "refer_program", instructions: [{ name: "configReferAccount", accounts: [{ name: "authority", isMut: true, isSigner: true }, { name: "referAccount", isMut: true, isSigner: false }, { name: "creator", isMut: false, isSigner: false }, { name: "systemProgram", isMut: false, isSigner: false }], args: [{ name: "referrer", type: "publicKey" }] }, { name: "closeReferAccount", accounts: [{ name: "authority", isMut: true, isSigner: true }, { name: "referAccount", isMut: true, isSigner: false }, { name: "creator", isMut: false, isSigner: false }, { name: "systemProgram", isMut: false, isSigner: false }], args: [] }], accounts: [{ name: "referAccount", type: { kind: "struct", fields: [{ name: "referrer", type: "publicKey" }] } }] };
+
+// src/referral/program.ts
+var PROGRAM_ID2 = new import_web37.PublicKey("RefwFk2PPNd9bPehSyAkrkrehSHkvz6mTAHTNe8v9vH");
+var getReferrerPda = (creator, authority) => import_web37.PublicKey.findProgramAddressSync([
+  creator.toBytes(),
+  authority.toBytes()
+], PROGRAM_ID2)[0];
+var createReferral = async (provider, creator, referAccount) => {
+  const referralProgram = new import_anchor.Program(REFERRAL_IDL, PROGRAM_ID2, provider);
+  return referralProgram.methods.configReferAccount(referAccount).accounts({ referAccount: getReferrerPda(creator, provider.wallet.publicKey), creator }).instruction();
+};
+var closeReferral = async (provider, creator) => {
+  const referralProgram = new import_anchor.Program(REFERRAL_IDL, PROGRAM_ID2, provider);
+  return referralProgram.methods.closeReferAccount().accounts({ referAccount: getReferrerPda(creator, provider.wallet.publicKey), creator }).instruction();
+};
+var fetchReferral = async (provider, pda) => {
+  const referralProgram = new import_anchor.Program(REFERRAL_IDL, PROGRAM_ID2, provider);
+  const account = await referralProgram.account.referAccount.fetch(pda);
+  if (!account)
+    return null;
+  return account.referrer;
+};
+
+// src/referral/referralPlugin.ts
+var SplToken = __toESM(require("@solana/spl-token"));
+var import_web38 = require("@solana/web3.js");
+var makeReferralPlugin = (recipient, upsert, referralFee = 0.01, creatorFeeDeduction = 1) => async (input, context) => {
+  const instructions = [];
+  const tokenAmount = BigInt(Math.floor(input.wager * referralFee));
+  if (upsert) {
+    instructions.push(
+      await createReferral(context.provider.anchorProvider, input.creator, recipient)
+    );
+  }
+  if (input.token.equals(SplToken.NATIVE_MINT)) {
+    instructions.push(
+      import_web38.SystemProgram.transfer({
+        fromPubkey: input.wallet,
+        toPubkey: recipient,
+        lamports: tokenAmount
+      })
+    );
+  } else {
+    const fromAta = SplToken.getAssociatedTokenAddressSync(input.token, input.wallet);
+    const toAta = SplToken.getAssociatedTokenAddressSync(input.token, recipient);
+    const recipientHasAta = await (async () => {
+      try {
+        await SplToken.getAccount(context.provider.anchorProvider.connection, toAta, "confirmed");
+        return true;
+      } catch (error) {
+        if (error instanceof SplToken.TokenAccountNotFoundError || error instanceof SplToken.TokenInvalidAccountOwnerError) {
+          return false;
+        } else {
+          throw error;
+        }
+      }
+    })();
+    if (!recipientHasAta) {
+      instructions.push(
+        SplToken.createAssociatedTokenAccountInstruction(
+          input.wallet,
+          toAta,
+          recipient,
+          input.token
+        )
+      );
+    }
+    instructions.push(
+      SplToken.createTransferInstruction(
+        fromAta,
+        toAta,
+        input.wallet,
+        tokenAmount
+      )
+    );
+  }
+  context.creatorFee = Math.max(0, context.creatorFee - referralFee * creatorFeeDeduction);
+  return instructions;
+};
+
+// src/referral/referralUtils.ts
+var import_web39 = require("@solana/web3.js");
+function getReferralLink(prefix, address) {
+  return location.protocol + "//" + location.host + "?" + prefix + "=" + address.toString();
+}
+function getReferralAddressFromUrl(prefix) {
+  const params = new URLSearchParams(location.search);
+  const referralAddressString = params.get(prefix);
+  if (!referralAddressString)
+    return null;
+  try {
+    return new import_web39.PublicKey(referralAddressString);
+  } catch (err) {
+    console.error("Failed to parse code");
+    return null;
+  }
+}
+
+// src/referral/ReferralContext.tsx
+var defaultPrefix = "code";
+function useWhiskyContext2() {
+  const { provider } = useWhisky();
+  return {
+    provider,
+    addPlugin: (plugin) => {
+      console.warn("addPlugin not implemented yet");
+      return () => {
+      };
+    }
+  };
+}
+function useWalletAddress2() {
+  const { publicKey } = (0, import_wallet_adapter_react8.useWallet)();
+  return publicKey;
+}
+var ReferralContext = (0, import_react29.createContext)({
+  referrerAddress: null,
+  isOnChain: false,
+  prefix: defaultPrefix,
+  referralStatus: "local",
+  clearCache: () => null,
+  setCache: () => null
+});
+function ReferralProvider({
+  fee,
+  prefix = defaultPrefix,
+  children,
+  storage = localStorage,
+  autoAccept = true
+}) {
+  const wallet = (0, import_wallet_adapter_react8.useWallet)();
+  const owner = useWalletAddress2();
+  const whiskyContext = useWhiskyContext2();
+  const whiskyPlatformContext = useWhiskyPlatformContext();
+  const [isFetchingOnChain, setIsFetchingOnChain] = (0, import_react29.useState)(false);
+  const [referralCache, setReferralCache] = (0, import_react29.useState)({ address: null, isOnChain: false });
+  const getOnChainAddress = async () => {
+    try {
+      if (!owner || !whiskyContext.provider?.anchorProvider)
+        return null;
+      const pda = getReferrerPda(whiskyPlatformContext.platform.creator, owner);
+      const address = await fetchReferral(whiskyContext.provider.anchorProvider, pda);
+      return address;
+    } catch {
+      return null;
+    }
+  };
+  const getPublicKeyFromStorage = (key) => {
+    try {
+      const value = storage.getItem(key);
+      if (value)
+        return new import_web310.PublicKey(value);
+    } catch {
+      return;
+    }
+  };
+  (0, import_react29.useEffect)(() => {
+    let isCancelled = false;
+    const handleReferral = async () => {
+      const urlAddress = getReferralAddressFromUrl(prefix);
+      if (autoAccept && urlAddress) {
+        storage.setItem("referral-new", urlAddress.toString());
+        const url = new URL(window.location.href);
+        const params = url.searchParams;
+        params.delete(prefix);
+        const newUrl = url.origin + url.pathname + (params.toString() ? "?" + params.toString() : "");
+        window.history.replaceState({}, document.title, newUrl);
+        return;
+      }
+      if (!wallet.publicKey) {
+        setReferralCache({ address: null, isOnChain: false });
+        return;
+      }
+      setIsFetchingOnChain(true);
+      try {
+        const onChainAddress = await getOnChainAddress();
+        if (isCancelled)
+          return;
+        if (!onChainAddress)
+          throw new Error();
+        setReferralCache({ address: onChainAddress, isOnChain: true });
+      } catch {
+        if (isCancelled)
+          return;
+        const storedReferralForAddress = getPublicKeyFromStorage("referral-" + wallet.publicKey.toString());
+        if (storedReferralForAddress) {
+          setReferralCache({ address: storedReferralForAddress, isOnChain: false });
+          return;
+        }
+        const newReferral = getPublicKeyFromStorage("referral-new");
+        if (newReferral && !newReferral.equals(wallet.publicKey)) {
+          setReferralCache({ address: newReferral, isOnChain: false });
+          storage.setItem("referral-" + wallet.publicKey.toString(), newReferral.toString());
+          storage.removeItem("referral-new");
+        }
+      } finally {
+        if (!isCancelled)
+          setIsFetchingOnChain(false);
+      }
+    };
+    handleReferral();
+    return () => {
+      isCancelled = true;
+    };
+  }, [
+    autoAccept,
+    whiskyPlatformContext.platform.creator.toString(),
+    wallet.publicKey?.toString(),
+    prefix
+  ]);
+  (0, import_react29.useEffect)(() => {
+    if (!referralCache.address)
+      return;
+    return whiskyContext.addPlugin(
+      makeReferralPlugin(
+        referralCache.address,
+        !referralCache.isOnChain,
+        fee,
+        1
+      )
+    );
+  }, [fee, referralCache.address, referralCache.isOnChain]);
+  const clearCache = () => {
+    if (wallet.publicKey) {
+      storage.removeItem("referral-" + wallet.publicKey.toString());
+    }
+    storage.removeItem("referral-new");
+    setReferralCache({ address: null, isOnChain: false });
+  };
+  const setCache = (address, isOnChain = false) => {
+    if (wallet.publicKey) {
+      storage.setItem("referral-" + wallet.publicKey.toString(), address.toString());
+    }
+    storage.setItem("referral-new", address.toString());
+    setReferralCache({ address, isOnChain });
+  };
+  return /* @__PURE__ */ import_react29.default.createElement(ReferralContext.Provider, { value: {
+    prefix,
+    isOnChain: referralCache.isOnChain,
+    referrerAddress: referralCache.address,
+    referralStatus: isFetchingOnChain ? "fetching" : referralCache.isOnChain ? "on-chain" : "local",
+    clearCache,
+    setCache
+  } }, children);
+}
+
+// src/WhiskyPlatformProvider.tsx
+var WhiskyPlatformContext = import_react30.default.createContext(null);
+function WhiskyPlatformProvider(props) {
+  const {
+    creator,
+    children,
+    referral = { prefix: "code", fee: 0.01, autoAccept: true }
+  } = props;
+  const [selectedPool, setSelectedPool] = import_react30.default.useState(props.defaultPool ?? { token: import_core8.NATIVE_MINT });
+  const [clientSeed, setClientSeed] = import_react30.default.useState(String(Math.random() * 1e9 | 0));
+  const [defaultJackpotFee, setDefaultJackpotFee] = import_react30.default.useState(props.defaultJackpotFee ?? 1e-3);
+  const defaultCreatorFee = props.defaultCreatorFee ?? 0.01;
+  const setPool = (tokenMint, authority = new import_web311.PublicKey("11111111111111111111111111111111")) => {
+    setSelectedPool({
+      token: new import_web311.PublicKey(tokenMint),
+      authority: new import_web311.PublicKey(authority)
+    });
+  };
+  const setToken = (tokenMint) => {
+    setPool(tokenMint);
+  };
+  return /* @__PURE__ */ import_react30.default.createElement(
+    WhiskyPlatformContext.Provider,
+    {
+      value: {
+        platform: {
+          name: "",
+          creator: new import_web311.PublicKey(creator)
+        },
+        selectedPool,
+        setToken,
+        setPool,
+        clientSeed,
+        setClientSeed,
+        defaultJackpotFee,
+        setDefaultJackpotFee,
+        defaultCreatorFee
+      }
+    },
+    /* @__PURE__ */ import_react30.default.createElement(ReferralProvider, { ...referral }, /* @__PURE__ */ import_react30.default.createElement(PortalProvider, null, children))
+  );
+}
+
+// src/index.ts
+var import_core9 = require("@whisky-gaming/core");
+
 // src/SendTransactionContext.tsx
-var import_react29 = __toESM(require("react"));
+var import_react31 = __toESM(require("react"));
 var defaultValue = {
   priorityFee: 100001,
   simulationUnits: 14e5,
   computeUnitLimitMargin: 1.1
 };
-var SendTransactionContext = import_react29.default.createContext(defaultValue);
+var SendTransactionContext = import_react31.default.createContext(defaultValue);
 function SendTransactionProvider({ children, ...props }) {
-  return /* @__PURE__ */ import_react29.default.createElement(SendTransactionContext.Provider, { value: { ...defaultValue, ...props } }, children);
+  return /* @__PURE__ */ import_react31.default.createElement(SendTransactionContext.Provider, { value: { ...defaultValue, ...props } }, children);
 }
 
 // src/makeHeliusTokenFetcher.ts
-var import_web311 = require("@solana/web3.js");
+var import_web312 = require("@solana/web3.js");
 function makeHeliusTokenFetcher(heliusApiKey, params = {}) {
   const { dollarBaseWager = 1 } = params;
   return async (tokenMints2) => {
@@ -1766,7 +1897,7 @@ function makeHeliusTokenFetcher(heliusApiKey, params = {}) {
       const info = x?.token_info;
       const usdPrice = info?.price_info?.price_per_token;
       const data = {
-        mint: new import_web311.PublicKey(x.id),
+        mint: new import_web312.PublicKey(x.id),
         image: x.content?.links?.image,
         symbol: x.content?.metadata.symbol ?? info.symbol,
         decimals: info.decimals,
@@ -1783,7 +1914,7 @@ function makeHeliusTokenFetcher(heliusApiKey, params = {}) {
 
 // src/referral/useReferral.ts
 var import_wallet_adapter_react9 = require("@solana/wallet-adapter-react");
-var import_react30 = require("react");
+var import_react32 = require("react");
 function useWhiskyProvider2() {
   const { provider } = useWhisky();
   return { anchorProvider: provider?.anchorProvider };
@@ -1795,12 +1926,12 @@ function useSendTransaction2() {
   };
 }
 function useReferral() {
-  const { clearCache, setCache, isOnChain, referrerAddress, referralStatus, prefix } = (0, import_react30.useContext)(ReferralContext);
+  const { clearCache, setCache, isOnChain, referrerAddress, referralStatus, prefix } = (0, import_react32.useContext)(ReferralContext);
   const wallet = (0, import_wallet_adapter_react9.useWallet)();
   const platform = useWhiskyPlatformContext();
   const provider = useWhiskyProvider2();
   const sendTransaction = useSendTransaction2();
-  const referralLink = (0, import_react30.useMemo)(() => wallet.publicKey && getReferralLink(prefix, wallet.publicKey), [prefix, wallet.publicKey?.toString()]);
+  const referralLink = (0, import_react32.useMemo)(() => wallet.publicKey && getReferralLink(prefix, wallet.publicKey), [prefix, wallet.publicKey?.toString()]);
   const copyLinkToClipboard = () => {
     if (!wallet.publicKey) {
       throw new Error("NOT_CONNECTED");
@@ -1865,50 +1996,37 @@ function useReferral() {
 }
 
 // src/index.ts
-var GameContextObj = (0, import_react31.createContext)({
+var GameContextObj = (0, import_react33.createContext)({
   game: null,
   setGame: () => {
   }
 });
-function useGame() {
-  const gameContext = (0, import_react31.useContext)(GameContextObj);
-  const defaultGame = {
-    id: "default",
-    app: () => null,
-    meta: {},
-    props: {}
-  };
-  return {
-    game: gameContext.game || defaultGame,
-    setGame: gameContext.setGame
-  };
-}
 function useWagerInput2(initial) {
-  const [_wager, setWager] = import_react31.default.useState(initial);
-  const context = import_react31.default.useContext(WhiskyPlatformContext);
+  const [_wager, setWager] = import_react33.default.useState(initial);
+  const context = import_react33.default.useContext(WhiskyPlatformContext);
   const token = useTokenMeta(context.selectedPool.token);
   return [_wager ?? token.baseWager, setWager];
 }
 function useTokenList() {
-  return import_react31.default.useContext(TokenMetaContext).tokens ?? [];
+  return import_react33.default.useContext(TokenMetaContext).tokens ?? [];
 }
 var WhiskyStandardTokens = {
   fake: {
-    mint: new import_web312.PublicKey("FakeCDoCX1NWywV9m63fk7gmV9S4seMoyqzcNYEmRYjy"),
+    mint: new import_web313.PublicKey("FakeCDoCX1NWywV9m63fk7gmV9S4seMoyqzcNYEmRYjy"),
     name: "Fake Money",
     symbol: "FAKE",
     decimals: 9,
     baseWager: 1 * 1e9
   },
   sol: {
-    mint: new import_web312.PublicKey("So11111111111111111111111111111111111111112"),
+    mint: new import_web313.PublicKey("So11111111111111111111111111111111111111112"),
     name: "Solana",
     symbol: "SOL",
     decimals: 9,
     baseWager: 0.01 * 1e9
   },
   usdc: {
-    mint: new import_web312.PublicKey("EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"),
+    mint: new import_web313.PublicKey("EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"),
     name: "USDC",
     symbol: "USDC",
     decimals: 6,

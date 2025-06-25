@@ -449,6 +449,27 @@ declare namespace useTokenMeta {
 }
 type UseTokenMetaFetcher = (tokenMints: string[]) => (Promise<Record<string, TokenMeta>> | Record<string, TokenMeta>);
 
+declare function useGame(): {
+    play: (input: Pick<WhiskyPlayInput, "wager" | "bet" | "metadata">, instructions?: TransactionInstruction[]) => Promise<string>;
+    game: GameBundle<any>;
+    result: () => Promise<{
+        creator: PublicKey;
+        user: PublicKey;
+        rngSeed: string;
+        clientSeed: string;
+        nonce: number;
+        bet: number[];
+        resultIndex: number;
+        wager: number;
+        payout: number;
+        profit: number;
+        multiplier: number;
+        token: PublicKey;
+        bonusUsed: number;
+        jackpotWin: number;
+    }>;
+};
+
 declare function useWhiskyPlatformContext(): WhiskyPlatformContext;
 declare function useCurrentPool(): PoolToken;
 declare function useCurrentToken(): TokenMeta;
@@ -499,10 +520,6 @@ interface GameBundle<T = any> {
     meta?: T;
     props?: any;
 }
-declare function useGame(): {
-    game: GameBundle<any>;
-    setGame: (game: GameBundle | null) => void;
-};
 declare function useWagerInput(initial?: number): readonly [number, React.Dispatch<React.SetStateAction<number | undefined>>];
 /** @deprecated Use <TokenMetaProvider /> */
 declare function useTokenList(): TokenMetaList;

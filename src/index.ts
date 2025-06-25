@@ -49,22 +49,7 @@ const GameContextObj = createContext<{
   setGame: () => {},
 })
 
-export function useGame() {
-  const gameContext = useContext(GameContextObj)
-  
-  // Return a default game if none is set to prevent null errors
-  const defaultGame: GameBundle = {
-    id: 'default',
-    app: () => null,
-    meta: {},
-    props: {}
-  }
-  
-  return {
-    game: gameContext.game || defaultGame,
-    setGame: gameContext.setGame,
-  }
-}
+// useGame is exported from hooks/useGame.ts
 
 // export function GameProvider({ children }: { children: React.ReactNode }) {
 //   const [game, setGame] = useState<GameBundle | null>(null)

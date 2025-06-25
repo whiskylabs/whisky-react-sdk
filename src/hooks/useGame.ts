@@ -15,6 +15,13 @@ export function useGame() {
   const balances = useUserBalance()
   const getNextResult = useNextResult()
   const whiskyPlay = useWhiskyPlay()
+  
+  // Debug logging
+  React.useEffect(() => {
+    console.log('useGame - gameContext:', gameContext)
+    console.log('useGame - context:', context)
+    console.log('useGame - balances:', balances)
+  }, [gameContext, context, balances])
 
   // Provide a default game to prevent null errors
   const defaultGame = {
@@ -58,9 +65,15 @@ export function useGame() {
     return whiskyPlay(gameInput, instructions)
   }
 
-  return {
+  const returnValue = {
     play,
     game,
     result,
   }
+  
+  // Debug the return value
+  console.log('useGame returning:', returnValue)
+  console.log('play function:', typeof returnValue.play)
+  
+  return returnValue
 }
