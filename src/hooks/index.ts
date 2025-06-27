@@ -29,40 +29,49 @@ export function useWhiskyPlatformContext() {
 
 export function useCurrentPool() {
   const context = React.useContext(WhiskyPlatformContext)
-  return context.selectedPool
+  return React.useMemo(() => context.selectedPool, [context.selectedPool])
 }
 
 export function useCurrentToken() {
-  const { token } = React.useContext(WhiskyPlatformContext).selectedPool
+  const context = React.useContext(WhiskyPlatformContext)
+  const token = React.useMemo(() => context.selectedPool.token, [context.selectedPool.token])
   return useTokenMeta(token)
 }
 
 export function useFees() {
   const context = React.useContext(WhiskyPlatformContext)
   const pool = useCurrentPool()
-  const creatorFee = context.defaultCreatorFee
-  const jackpotFee = context.defaultJackpotFee
   
-  // Get actual pool fees
-  const poolData = usePool(pool.token, pool.authority)
-  return creatorFee + jackpotFee + poolData.whiskyFee + poolData.poolFee
+  return React.useMemo(() => {
+    const creatorFee = context.defaultCreatorFee
+    const jackpotFee = context.defaultJackpotFee
+    
+    // Get actual pool fees
+    const poolData = usePool(pool.token, pool.authority)
+    return creatorFee + jackpotFee + poolData.whiskyFee + poolData.poolFee
+  }, [context.defaultCreatorFee, context.defaultJackpotFee, pool.token, pool.authority])
 }
 
 export function useUserBalance(mint?: PublicKey) {
   const pool = useCurrentPool()
   const token = useCurrentToken()
   const userAddress = useWalletAddress()
-  const realBalance = useBalance(userAddress, mint ?? token.mint, pool.authority)
+  
+  const targetMint = React.useMemo(() => mint ?? token.mint, [mint, token.mint])
+  const authority = React.useMemo(() => pool.authority, [pool.authority])
+  
+  const realBalance = useBalance(userAddress, targetMint, authority)
   
   return realBalance
 }
 
 // Provider helpers
 export function useWhiskyProvider() {
-  return useWhiskyContext().provider
+  const context = useWhiskyContext()
+  return React.useMemo(() => context.provider, [context.provider])
 }
 
 export function useWhiskyProgram() {
   const provider = useWhiskyProvider()
-  return provider?.whiskyProgram
+  return React.useMemo(() => provider?.whiskyProgram, [provider])
 }

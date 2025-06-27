@@ -45,12 +45,20 @@ export function WhiskyPlatformProvider(props: WhiskyPlatformProviderProps) {
     children,
     referral = { prefix: 'code', fee: 0.01, autoAccept: true },
   } = props
+  
   const [selectedPool, setSelectedPool] = React.useState<PoolToken>(props.defaultPool ?? { token: NATIVE_MINT })
   const [clientSeed, setClientSeed] = React.useState(String(Math.random() * 1e9 | 0))
   const [defaultJackpotFee, setDefaultJackpotFee] = React.useState(props.defaultJackpotFee ?? 0.001)
   const defaultCreatorFee = props.defaultCreatorFee ?? 0.01
 
-  const setPool = (
+  // Memoize platform object to prevent re-renders
+  const platform = React.useMemo(() => ({
+    name: '',
+    creator: new PublicKey(creator),
+  }), [creator])
+
+  // Memoize setters to prevent re-renders
+  const setPool = React.useCallback((
     tokenMint: PublicKey | string,
     authority: PublicKey | string = new PublicKey('11111111111111111111111111111111'),
   ) => {
@@ -58,29 +66,35 @@ export function WhiskyPlatformProvider(props: WhiskyPlatformProviderProps) {
       token: new PublicKey(tokenMint),
       authority: new PublicKey(authority),
     })
-  }
+  }, [])
 
-  const setToken = (tokenMint: PublicKey | string) => {
+  const setToken = React.useCallback((tokenMint: PublicKey | string) => {
     setPool(tokenMint)
-  }
+  }, [setPool])
+
+  // Memoize context value to prevent unnecessary re-renders
+  const contextValue = React.useMemo(() => ({
+    platform,
+    selectedPool,
+    setToken,
+    setPool,
+    clientSeed,
+    setClientSeed,
+    defaultJackpotFee,
+    setDefaultJackpotFee,
+    defaultCreatorFee,
+  }), [
+    platform,
+    selectedPool,
+    setToken,
+    setPool,
+    clientSeed,
+    defaultJackpotFee,
+    defaultCreatorFee
+  ])
 
   return (
-    <WhiskyPlatformContext.Provider
-      value={{
-        platform: {
-          name: '',
-          creator: new PublicKey(creator),
-        },
-        selectedPool,
-        setToken,
-        setPool,
-        clientSeed,
-        setClientSeed,
-        defaultJackpotFee,
-        setDefaultJackpotFee,
-        defaultCreatorFee,
-      }}
-    >
+    <WhiskyPlatformContext.Provider value={contextValue}>
       <ReferralProvider {...referral}>
         <PortalProvider>
           {children}

@@ -212,60 +212,90 @@ import { getPoolAddress, getUserUnderlyingAta, getUserBonusAtaForPool, isNativeM
 
 // src/hooks/useAccount.ts
 import { useConnection as useConnection2 } from "@solana/wallet-adapter-react";
-import { useEffect as useEffect2, useState as useState2 } from "react";
+import { useMemo as useMemo2, useEffect as useEffect2, useState as useState2, useCallback, useRef } from "react";
 function useAccount(publicKey, decoder) {
   const { connection } = useConnection2();
   const [account, setAccount] = useState2(null);
   const [error, setError] = useState2(null);
+  const lastFetchTime = useRef(0);
+  const isFetching = useRef(false);
+  const memoizedDecoder = useCallback(decoder, []);
+  const publicKeyString = useMemo2(() => publicKey?.toString(), [publicKey]);
   useEffect2(() => {
-    if (!publicKey) {
+    if (!publicKey || !publicKeyString) {
       setAccount(null);
       return;
     }
     let subscriptionId;
+    let isActive = true;
     const fetchAccount = async () => {
+      const now = Date.now();
+      if (isFetching.current || now - lastFetchTime.current < 1e3) {
+        return;
+      }
+      isFetching.current = true;
+      lastFetchTime.current = now;
       try {
         const accountInfo = await connection.getAccountInfo(publicKey);
+        if (!isActive)
+          return;
         if (accountInfo) {
-          const decoded = decoder(accountInfo.data);
+          const decoded = memoizedDecoder(accountInfo.data);
           setAccount(decoded);
         } else {
           setAccount(null);
         }
         setError(null);
       } catch (err) {
+        if (!isActive)
+          return;
+        console.warn("Error fetching account:", publicKeyString, err);
         setError(err);
         setAccount(null);
+      } finally {
+        isFetching.current = false;
       }
     };
     const subscribeToAccount = () => {
-      subscriptionId = connection.onAccountChange(
-        publicKey,
-        (accountInfo) => {
-          if (accountInfo) {
-            try {
-              const decoded = decoder(accountInfo.data);
-              setAccount(decoded);
-              setError(null);
-            } catch (err) {
-              setError(err);
+      try {
+        subscriptionId = connection.onAccountChange(
+          publicKey,
+          (accountInfo) => {
+            if (!isActive)
+              return;
+            if (accountInfo) {
+              try {
+                const decoded = memoizedDecoder(accountInfo.data);
+                setAccount(decoded);
+                setError(null);
+              } catch (err) {
+                console.warn("Error decoding account:", publicKeyString, err);
+                setError(err);
+                setAccount(null);
+              }
+            } else {
               setAccount(null);
             }
-          } else {
-            setAccount(null);
-          }
-        },
-        "confirmed"
-      );
+          },
+          "confirmed"
+        );
+      } catch (err) {
+        console.warn("Error setting up account subscription:", publicKeyString, err);
+      }
     };
     fetchAccount();
     subscribeToAccount();
     return () => {
+      isActive = false;
       if (subscriptionId !== void 0) {
-        connection.removeAccountChangeListener(subscriptionId);
+        try {
+          connection.removeAccountChangeListener(subscriptionId);
+        } catch (err) {
+          console.warn("Error removing account listener:", err);
+        }
       }
     };
-  }, [connection, publicKey, decoder]);
+  }, [connection, publicKeyString, memoizedDecoder]);
   if (error) {
     console.error("Error fetching account:", error);
   }
@@ -280,11 +310,20 @@ function useWalletAddress() {
   return wallet.publicKey ?? emptyAccount.publicKey;
 }
 function useBalance(publicKey, token, authority) {
-  const ata = getUserUnderlyingAta(publicKey, token);
-  const bonusAta = getUserBonusAtaForPool(publicKey, getPoolAddress(token, authority));
+  const addresses = useMemo3(() => {
+    const ata = getUserUnderlyingAta(publicKey, token);
+    const bonusAta = getUserBonusAtaForPool(publicKey, getPoolAddress(token, authority));
+    return {
+      ata,
+      bonusAta,
+      publicKeyString: publicKey.toString(),
+      tokenString: token.toString(),
+      authorityString: authority?.toString()
+    };
+  }, [publicKey, token, authority]);
   const userAccount = useAccount(publicKey, (info) => info);
-  const tokenAccount = useAccount(ata, (data) => data);
-  const bonusAccount = useAccount(bonusAta, (data) => data);
+  const tokenAccount = useAccount(addresses.ata, (data) => data);
+  const bonusAccount = useAccount(addresses.bonusAta, (data) => data);
   const balance = useMemo3(() => {
     const nativeBalance = Number(userAccount?.lamports ?? 0);
     const tokenBalance = Number(tokenAccount?.amount ?? 0);
@@ -294,7 +333,7 @@ function useBalance(publicKey, token, authority) {
       balance: isNativeMint(token) ? nativeBalance : tokenBalance,
       bonusBalance
     };
-  }, [userAccount, tokenAccount, bonusAccount, token]);
+  }, [userAccount?.lamports, tokenAccount?.amount, bonusAccount?.amount, token]);
   return balance;
 }
 
@@ -360,7 +399,7 @@ import { NATIVE_MINT as NATIVE_MINT2, SYSTEM_PROGRAM as SYSTEM_PROGRAM2, getPool
 // src/hooks/useSendTransaction.ts
 import { useConnection as useConnection3, useWallet as useWallet3 } from "@solana/wallet-adapter-react";
 import { Transaction } from "@solana/web3.js";
-import { useCallback } from "react";
+import { useCallback as useCallback2 } from "react";
 import React5 from "react";
 
 // src/hooks/useTransactionStore.ts
@@ -408,7 +447,7 @@ function useSendTransaction() {
   const { connection } = useConnection3();
   const { sendTransaction, publicKey } = useWallet3();
   const { setState } = useTransactionStore();
-  return useCallback(
+  return useCallback2(
     async (instructions, options = {}) => {
       try {
         setState("pending");
@@ -593,7 +632,7 @@ function useWhiskyEvents(eventName, props = {}) {
 import React7 from "react";
 
 // src/hooks/useSound.ts
-import { useCallback as useCallback2, useEffect as useEffect3, useMemo as useMemo4 } from "react";
+import { useCallback as useCallback3, useEffect as useEffect3, useMemo as useMemo4 } from "react";
 import { Player, Gain } from "tone";
 import { create as create2 } from "zustand";
 var useSoundStore = create2(
@@ -664,7 +703,7 @@ function useSound(definition) {
     },
     [store.volume]
   );
-  const play = useCallback2(
+  const play = useCallback3(
     (soundId, params) => {
       const gain = params?.gain ?? 1;
       const opts = { ...params, gain: gain * store.get().volume };
@@ -689,15 +728,15 @@ import React20 from "react";
 import React8 from "react";
 
 // src/hooks/useAnimationFrame.ts
-import { useLayoutEffect, useRef } from "react";
+import { useLayoutEffect, useRef as useRef2 } from "react";
 var useAnimationFrame_default = (cb) => {
   if (typeof performance === "undefined" || typeof window === "undefined") {
     return;
   }
-  const cbRef = useRef(null);
-  const frame = useRef();
-  const init = useRef(performance.now());
-  const last = useRef(performance.now());
+  const cbRef = useRef2(null);
+  const frame = useRef2();
+  const init = useRef2(performance.now());
+  const last = useRef2(performance.now());
   cbRef.current = cb;
   const animate = (now) => {
     cbRef.current({
@@ -1063,7 +1102,7 @@ function TextInput({ onChange, ...props }) {
 }
 
 // src/components/WagerInput.tsx
-import React18, { useRef as useRef2 } from "react";
+import React18, { useRef as useRef3 } from "react";
 import styled6, { css as css2 } from "styled-components";
 
 // src/components/TokenValue.tsx
@@ -1224,7 +1263,7 @@ function WagerInput(props) {
   const balance = useUserBalance();
   const fees = useFees();
   const [isEditing, setIsEditing] = React18.useState(false);
-  const ref = useRef2(null);
+  const ref = useRef3(null);
   React18.useEffect(
     () => {
       props.onChange(token.baseWager);
@@ -1413,11 +1452,6 @@ function useGame() {
   const balances = useUserBalance();
   const getNextResult2 = useNextResult();
   const whiskyPlay = useWhiskyPlay();
-  React22.useEffect(() => {
-    console.log("useGame - gameContext:", gameContext);
-    console.log("useGame - context:", context);
-    console.log("useGame - balances:", balances);
-  }, [gameContext, context, balances]);
   const defaultGame = {
     id: "default",
     app: () => null,
@@ -1449,14 +1483,11 @@ function useGame() {
     }
     return whiskyPlay(gameInput, instructions);
   };
-  const returnValue = {
+  return {
     play,
     game,
     result
   };
-  console.log("useGame returning:", returnValue);
-  console.log("play function:", typeof returnValue.play);
-  return returnValue;
 }
 
 // src/hooks/index.ts
@@ -1465,33 +1496,39 @@ function useWhiskyPlatformContext() {
 }
 function useCurrentPool() {
   const context = React23.useContext(WhiskyPlatformContext);
-  return context.selectedPool;
+  return React23.useMemo(() => context.selectedPool, [context.selectedPool]);
 }
 function useCurrentToken() {
-  const { token } = React23.useContext(WhiskyPlatformContext).selectedPool;
+  const context = React23.useContext(WhiskyPlatformContext);
+  const token = React23.useMemo(() => context.selectedPool.token, [context.selectedPool.token]);
   return useTokenMeta(token);
 }
 function useFees() {
   const context = React23.useContext(WhiskyPlatformContext);
   const pool = useCurrentPool();
-  const creatorFee = context.defaultCreatorFee;
-  const jackpotFee = context.defaultJackpotFee;
-  const poolData = usePool(pool.token, pool.authority);
-  return creatorFee + jackpotFee + poolData.whiskyFee + poolData.poolFee;
+  return React23.useMemo(() => {
+    const creatorFee = context.defaultCreatorFee;
+    const jackpotFee = context.defaultJackpotFee;
+    const poolData = usePool(pool.token, pool.authority);
+    return creatorFee + jackpotFee + poolData.whiskyFee + poolData.poolFee;
+  }, [context.defaultCreatorFee, context.defaultJackpotFee, pool.token, pool.authority]);
 }
 function useUserBalance(mint) {
   const pool = useCurrentPool();
   const token = useCurrentToken();
   const userAddress = useWalletAddress();
-  const realBalance = useBalance(userAddress, mint ?? token.mint, pool.authority);
+  const targetMint = React23.useMemo(() => mint ?? token.mint, [mint, token.mint]);
+  const authority = React23.useMemo(() => pool.authority, [pool.authority]);
+  const realBalance = useBalance(userAddress, targetMint, authority);
   return realBalance;
 }
 function useWhiskyProvider() {
-  return useWhiskyContext().provider;
+  const context = useWhiskyContext();
+  return React23.useMemo(() => context.provider, [context.provider]);
 }
 function useWhiskyProgram() {
   const provider = useWhiskyProvider();
-  return provider?.whiskyProgram;
+  return React23.useMemo(() => provider?.whiskyProgram, [provider]);
 }
 
 // src/referral/program.ts
@@ -1758,35 +1795,39 @@ function WhiskyPlatformProvider(props) {
   const [clientSeed, setClientSeed] = React25.useState(String(Math.random() * 1e9 | 0));
   const [defaultJackpotFee, setDefaultJackpotFee] = React25.useState(props.defaultJackpotFee ?? 1e-3);
   const defaultCreatorFee = props.defaultCreatorFee ?? 0.01;
-  const setPool = (tokenMint, authority = new PublicKey11("11111111111111111111111111111111")) => {
+  const platform = React25.useMemo(() => ({
+    name: "",
+    creator: new PublicKey11(creator)
+  }), [creator]);
+  const setPool = React25.useCallback((tokenMint, authority = new PublicKey11("11111111111111111111111111111111")) => {
     setSelectedPool({
       token: new PublicKey11(tokenMint),
       authority: new PublicKey11(authority)
     });
-  };
-  const setToken = (tokenMint) => {
+  }, []);
+  const setToken = React25.useCallback((tokenMint) => {
     setPool(tokenMint);
-  };
-  return /* @__PURE__ */ React25.createElement(
-    WhiskyPlatformContext.Provider,
-    {
-      value: {
-        platform: {
-          name: "",
-          creator: new PublicKey11(creator)
-        },
-        selectedPool,
-        setToken,
-        setPool,
-        clientSeed,
-        setClientSeed,
-        defaultJackpotFee,
-        setDefaultJackpotFee,
-        defaultCreatorFee
-      }
-    },
-    /* @__PURE__ */ React25.createElement(ReferralProvider, { ...referral }, /* @__PURE__ */ React25.createElement(PortalProvider, null, children))
-  );
+  }, [setPool]);
+  const contextValue = React25.useMemo(() => ({
+    platform,
+    selectedPool,
+    setToken,
+    setPool,
+    clientSeed,
+    setClientSeed,
+    defaultJackpotFee,
+    setDefaultJackpotFee,
+    defaultCreatorFee
+  }), [
+    platform,
+    selectedPool,
+    setToken,
+    setPool,
+    clientSeed,
+    defaultJackpotFee,
+    defaultCreatorFee
+  ]);
+  return /* @__PURE__ */ React25.createElement(WhiskyPlatformContext.Provider, { value: contextValue }, /* @__PURE__ */ React25.createElement(ReferralProvider, { ...referral }, /* @__PURE__ */ React25.createElement(PortalProvider, null, children)));
 }
 
 // src/index.ts

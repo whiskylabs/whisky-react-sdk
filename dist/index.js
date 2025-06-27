@@ -299,55 +299,85 @@ function useAccount(publicKey, decoder) {
   const { connection } = (0, import_wallet_adapter_react2.useConnection)();
   const [account, setAccount] = (0, import_react5.useState)(null);
   const [error, setError] = (0, import_react5.useState)(null);
+  const lastFetchTime = (0, import_react5.useRef)(0);
+  const isFetching = (0, import_react5.useRef)(false);
+  const memoizedDecoder = (0, import_react5.useCallback)(decoder, []);
+  const publicKeyString = (0, import_react5.useMemo)(() => publicKey?.toString(), [publicKey]);
   (0, import_react5.useEffect)(() => {
-    if (!publicKey) {
+    if (!publicKey || !publicKeyString) {
       setAccount(null);
       return;
     }
     let subscriptionId;
+    let isActive = true;
     const fetchAccount = async () => {
+      const now = Date.now();
+      if (isFetching.current || now - lastFetchTime.current < 1e3) {
+        return;
+      }
+      isFetching.current = true;
+      lastFetchTime.current = now;
       try {
         const accountInfo = await connection.getAccountInfo(publicKey);
+        if (!isActive)
+          return;
         if (accountInfo) {
-          const decoded = decoder(accountInfo.data);
+          const decoded = memoizedDecoder(accountInfo.data);
           setAccount(decoded);
         } else {
           setAccount(null);
         }
         setError(null);
       } catch (err) {
+        if (!isActive)
+          return;
+        console.warn("Error fetching account:", publicKeyString, err);
         setError(err);
         setAccount(null);
+      } finally {
+        isFetching.current = false;
       }
     };
     const subscribeToAccount = () => {
-      subscriptionId = connection.onAccountChange(
-        publicKey,
-        (accountInfo) => {
-          if (accountInfo) {
-            try {
-              const decoded = decoder(accountInfo.data);
-              setAccount(decoded);
-              setError(null);
-            } catch (err) {
-              setError(err);
+      try {
+        subscriptionId = connection.onAccountChange(
+          publicKey,
+          (accountInfo) => {
+            if (!isActive)
+              return;
+            if (accountInfo) {
+              try {
+                const decoded = memoizedDecoder(accountInfo.data);
+                setAccount(decoded);
+                setError(null);
+              } catch (err) {
+                console.warn("Error decoding account:", publicKeyString, err);
+                setError(err);
+                setAccount(null);
+              }
+            } else {
               setAccount(null);
             }
-          } else {
-            setAccount(null);
-          }
-        },
-        "confirmed"
-      );
+          },
+          "confirmed"
+        );
+      } catch (err) {
+        console.warn("Error setting up account subscription:", publicKeyString, err);
+      }
     };
     fetchAccount();
     subscribeToAccount();
     return () => {
+      isActive = false;
       if (subscriptionId !== void 0) {
-        connection.removeAccountChangeListener(subscriptionId);
+        try {
+          connection.removeAccountChangeListener(subscriptionId);
+        } catch (err) {
+          console.warn("Error removing account listener:", err);
+        }
       }
     };
-  }, [connection, publicKey, decoder]);
+  }, [connection, publicKeyString, memoizedDecoder]);
   if (error) {
     console.error("Error fetching account:", error);
   }
@@ -362,11 +392,20 @@ function useWalletAddress() {
   return wallet.publicKey ?? emptyAccount.publicKey;
 }
 function useBalance(publicKey, token, authority) {
-  const ata = (0, import_core2.getUserUnderlyingAta)(publicKey, token);
-  const bonusAta = (0, import_core2.getUserBonusAtaForPool)(publicKey, (0, import_core2.getPoolAddress)(token, authority));
+  const addresses = (0, import_react6.useMemo)(() => {
+    const ata = (0, import_core2.getUserUnderlyingAta)(publicKey, token);
+    const bonusAta = (0, import_core2.getUserBonusAtaForPool)(publicKey, (0, import_core2.getPoolAddress)(token, authority));
+    return {
+      ata,
+      bonusAta,
+      publicKeyString: publicKey.toString(),
+      tokenString: token.toString(),
+      authorityString: authority?.toString()
+    };
+  }, [publicKey, token, authority]);
   const userAccount = useAccount(publicKey, (info) => info);
-  const tokenAccount = useAccount(ata, (data) => data);
-  const bonusAccount = useAccount(bonusAta, (data) => data);
+  const tokenAccount = useAccount(addresses.ata, (data) => data);
+  const bonusAccount = useAccount(addresses.bonusAta, (data) => data);
   const balance = (0, import_react6.useMemo)(() => {
     const nativeBalance = Number(userAccount?.lamports ?? 0);
     const tokenBalance = Number(tokenAccount?.amount ?? 0);
@@ -376,7 +415,7 @@ function useBalance(publicKey, token, authority) {
       balance: (0, import_core2.isNativeMint)(token) ? nativeBalance : tokenBalance,
       bonusBalance
     };
-  }, [userAccount, tokenAccount, bonusAccount, token]);
+  }, [userAccount?.lamports, tokenAccount?.amount, bonusAccount?.amount, token]);
   return balance;
 }
 
@@ -1486,11 +1525,6 @@ function useGame() {
   const balances = useUserBalance();
   const getNextResult2 = useNextResult();
   const whiskyPlay = useWhiskyPlay();
-  import_react27.default.useEffect(() => {
-    console.log("useGame - gameContext:", gameContext);
-    console.log("useGame - context:", context);
-    console.log("useGame - balances:", balances);
-  }, [gameContext, context, balances]);
   const defaultGame = {
     id: "default",
     app: () => null,
@@ -1522,14 +1556,11 @@ function useGame() {
     }
     return whiskyPlay(gameInput, instructions);
   };
-  const returnValue = {
+  return {
     play,
     game,
     result
   };
-  console.log("useGame returning:", returnValue);
-  console.log("play function:", typeof returnValue.play);
-  return returnValue;
 }
 
 // src/hooks/index.ts
@@ -1538,33 +1569,39 @@ function useWhiskyPlatformContext() {
 }
 function useCurrentPool() {
   const context = import_react28.default.useContext(WhiskyPlatformContext);
-  return context.selectedPool;
+  return import_react28.default.useMemo(() => context.selectedPool, [context.selectedPool]);
 }
 function useCurrentToken() {
-  const { token } = import_react28.default.useContext(WhiskyPlatformContext).selectedPool;
+  const context = import_react28.default.useContext(WhiskyPlatformContext);
+  const token = import_react28.default.useMemo(() => context.selectedPool.token, [context.selectedPool.token]);
   return useTokenMeta(token);
 }
 function useFees() {
   const context = import_react28.default.useContext(WhiskyPlatformContext);
   const pool = useCurrentPool();
-  const creatorFee = context.defaultCreatorFee;
-  const jackpotFee = context.defaultJackpotFee;
-  const poolData = usePool(pool.token, pool.authority);
-  return creatorFee + jackpotFee + poolData.whiskyFee + poolData.poolFee;
+  return import_react28.default.useMemo(() => {
+    const creatorFee = context.defaultCreatorFee;
+    const jackpotFee = context.defaultJackpotFee;
+    const poolData = usePool(pool.token, pool.authority);
+    return creatorFee + jackpotFee + poolData.whiskyFee + poolData.poolFee;
+  }, [context.defaultCreatorFee, context.defaultJackpotFee, pool.token, pool.authority]);
 }
 function useUserBalance(mint) {
   const pool = useCurrentPool();
   const token = useCurrentToken();
   const userAddress = useWalletAddress();
-  const realBalance = useBalance(userAddress, mint ?? token.mint, pool.authority);
+  const targetMint = import_react28.default.useMemo(() => mint ?? token.mint, [mint, token.mint]);
+  const authority = import_react28.default.useMemo(() => pool.authority, [pool.authority]);
+  const realBalance = useBalance(userAddress, targetMint, authority);
   return realBalance;
 }
 function useWhiskyProvider() {
-  return useWhiskyContext().provider;
+  const context = useWhiskyContext();
+  return import_react28.default.useMemo(() => context.provider, [context.provider]);
 }
 function useWhiskyProgram() {
   const provider = useWhiskyProvider();
-  return provider?.whiskyProgram;
+  return import_react28.default.useMemo(() => provider?.whiskyProgram, [provider]);
 }
 
 // src/referral/program.ts
@@ -1831,35 +1868,39 @@ function WhiskyPlatformProvider(props) {
   const [clientSeed, setClientSeed] = import_react30.default.useState(String(Math.random() * 1e9 | 0));
   const [defaultJackpotFee, setDefaultJackpotFee] = import_react30.default.useState(props.defaultJackpotFee ?? 1e-3);
   const defaultCreatorFee = props.defaultCreatorFee ?? 0.01;
-  const setPool = (tokenMint, authority = new import_web311.PublicKey("11111111111111111111111111111111")) => {
+  const platform = import_react30.default.useMemo(() => ({
+    name: "",
+    creator: new import_web311.PublicKey(creator)
+  }), [creator]);
+  const setPool = import_react30.default.useCallback((tokenMint, authority = new import_web311.PublicKey("11111111111111111111111111111111")) => {
     setSelectedPool({
       token: new import_web311.PublicKey(tokenMint),
       authority: new import_web311.PublicKey(authority)
     });
-  };
-  const setToken = (tokenMint) => {
+  }, []);
+  const setToken = import_react30.default.useCallback((tokenMint) => {
     setPool(tokenMint);
-  };
-  return /* @__PURE__ */ import_react30.default.createElement(
-    WhiskyPlatformContext.Provider,
-    {
-      value: {
-        platform: {
-          name: "",
-          creator: new import_web311.PublicKey(creator)
-        },
-        selectedPool,
-        setToken,
-        setPool,
-        clientSeed,
-        setClientSeed,
-        defaultJackpotFee,
-        setDefaultJackpotFee,
-        defaultCreatorFee
-      }
-    },
-    /* @__PURE__ */ import_react30.default.createElement(ReferralProvider, { ...referral }, /* @__PURE__ */ import_react30.default.createElement(PortalProvider, null, children))
-  );
+  }, [setPool]);
+  const contextValue = import_react30.default.useMemo(() => ({
+    platform,
+    selectedPool,
+    setToken,
+    setPool,
+    clientSeed,
+    setClientSeed,
+    defaultJackpotFee,
+    setDefaultJackpotFee,
+    defaultCreatorFee
+  }), [
+    platform,
+    selectedPool,
+    setToken,
+    setPool,
+    clientSeed,
+    defaultJackpotFee,
+    defaultCreatorFee
+  ]);
+  return /* @__PURE__ */ import_react30.default.createElement(WhiskyPlatformContext.Provider, { value: contextValue }, /* @__PURE__ */ import_react30.default.createElement(ReferralProvider, { ...referral }, /* @__PURE__ */ import_react30.default.createElement(PortalProvider, null, children)));
 }
 
 // src/index.ts

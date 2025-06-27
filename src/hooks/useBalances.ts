@@ -13,12 +13,23 @@ export function useWalletAddress() {
 }
 
 export function useBalance(publicKey: PublicKey, token: PublicKey, authority?: PublicKey) {
-  const ata = getUserUnderlyingAta(publicKey, token)
-  const bonusAta = getUserBonusAtaForPool(publicKey, getPoolAddress(token, authority))
+  // Memoize addresses to prevent unnecessary re-computations
+  const addresses = useMemo(() => {
+    const ata = getUserUnderlyingAta(publicKey, token)
+    const bonusAta = getUserBonusAtaForPool(publicKey, getPoolAddress(token, authority))
+    
+    return {
+      ata,
+      bonusAta,
+      publicKeyString: publicKey.toString(),
+      tokenString: token.toString(),
+      authorityString: authority?.toString()
+    }
+  }, [publicKey, token, authority])
 
   const userAccount = useAccount(publicKey, (info) => info)
-  const tokenAccount = useAccount(ata, (data) => data)
-  const bonusAccount = useAccount(bonusAta, (data) => data)
+  const tokenAccount = useAccount(addresses.ata, (data) => data)
+  const bonusAccount = useAccount(addresses.bonusAta, (data) => data)
 
   const balance = useMemo(() => {
     const nativeBalance = Number(userAccount?.lamports ?? 0)
@@ -30,7 +41,7 @@ export function useBalance(publicKey: PublicKey, token: PublicKey, authority?: P
       balance: isNativeMint(token) ? nativeBalance : tokenBalance,
       bonusBalance,
     }
-  }, [userAccount, tokenAccount, bonusAccount, token])
+  }, [userAccount?.lamports, tokenAccount?.amount, bonusAccount?.amount, token])
 
   return balance
 } 
