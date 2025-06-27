@@ -42,14 +42,15 @@ export function useFees() {
   const context = React.useContext(WhiskyPlatformContext)
   const pool = useCurrentPool()
   
+  // Move usePool call outside of useMemo to comply with Rules of Hooks
+  const poolData = usePool(pool.token, pool.authority)
+  
   return React.useMemo(() => {
     const creatorFee = context.defaultCreatorFee
     const jackpotFee = context.defaultJackpotFee
     
-    // Get actual pool fees
-    const poolData = usePool(pool.token, pool.authority)
     return creatorFee + jackpotFee + poolData.whiskyFee + poolData.poolFee
-  }, [context.defaultCreatorFee, context.defaultJackpotFee, pool.token, pool.authority])
+  }, [context.defaultCreatorFee, context.defaultJackpotFee, poolData.whiskyFee, poolData.poolFee])
 }
 
 export function useUserBalance(mint?: PublicKey) {

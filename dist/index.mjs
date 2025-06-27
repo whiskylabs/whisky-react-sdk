@@ -1506,12 +1506,12 @@ function useCurrentToken() {
 function useFees() {
   const context = React23.useContext(WhiskyPlatformContext);
   const pool = useCurrentPool();
+  const poolData = usePool(pool.token, pool.authority);
   return React23.useMemo(() => {
     const creatorFee = context.defaultCreatorFee;
     const jackpotFee = context.defaultJackpotFee;
-    const poolData = usePool(pool.token, pool.authority);
     return creatorFee + jackpotFee + poolData.whiskyFee + poolData.poolFee;
-  }, [context.defaultCreatorFee, context.defaultJackpotFee, pool.token, pool.authority]);
+  }, [context.defaultCreatorFee, context.defaultJackpotFee, poolData.whiskyFee, poolData.poolFee]);
 }
 function useUserBalance(mint) {
   const pool = useCurrentPool();
